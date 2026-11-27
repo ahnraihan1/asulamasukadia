@@ -865,25 +865,113 @@ apiV1Router.get(
   requireAuth,
   requireRole('ADMIN', 'OPERATOR'),
   asyncHandler((_req, res) => {
-    const rows = db.raw
-      .prepare(
-        `SELECT roblox_username, credential_id
-         FROM accounts
-         WHERE deleted_at IS NULL
-         ORDER BY created_at DESC`
-      )
-      .all() as unknown as Array<{ roblox_username: string; credential_id: string | null }>;
+    const exported = AccountService.exportFormattedCredentials();
 
-    const lines = rows.map((r) =>
-      CredentialVault.formatAccountCredentialLine(r.roblox_username, r.credential_id)
+    res.json({
+      success: true,
+      data: exported,
+    });
+  })
+);
+
+const bulkIdsSchema = z.object({
+  ids: z.array(z.string().trim().min(1)).min(1).max(5000),
+});
+
+const bulkUpdateAccountsSchema = z
+  .object({
+    ids: z.array(z.string().trim().min(1)).min(1).max(5000),
+    category: z.string().trim().min(1).max(64).optional(),
+    registrationStatus: z
+      .enum(['REGISTERED', 'PENDING_CONFIRMATION', 'SUSPENDED', 'ARCHIVED'])
+      .optional(),
+    verificationStatus: z
+      .enum(['UNVERIFIED', 'VERIFICATION_REQUIRED', 'VERIFIED'])
+      .optional(),
+  })
+  .refine(
+    (d) =>
+      Boolean(d.category) ||
+      Boolean(d.registrationStatus) ||
+      Boolean(d.verificationStatus),
+    { message: 'At least one field to update is required' }
+  );
+
+apiV1Router.post(
+  '/accounts/bulk-export-formatted',
+  requireAuth,
+  requireRole('ADMIN', 'OPERATOR'),
+  asyncHandler((req, res) => {
+    const parsed = bulkIdsSchema.parse(req.body);
+    const exported = AccountService.exportFormattedCredentials(parsed.ids);
+    res.json({
+      success: true,
+      data: exported,
+    });
+  })
+);
+
+apiV1Router.post(
+  '/accounts/bulk-update',
+  requireAuth,
+  requireRole('ADMIN', 'OPERATOR'),
+  asyncHandler((req, res) => {
+    const parsed = bulkUpdateAccountsSchema.parse(req.body);
+    const result = AccountService.bulkUpdateAccounts(
+      parsed.ids,
+      {
+        category: parsed.category,
+        registrationStatus: parsed.registrationStatus,
+        verificationStatus: parsed.verificationStatus,
+      },
+      req.user?.id ?? null
     );
+    res.json({
+      success: true,
+      data: result,
+    });
+  })
+);
+
+apiV1Router.post(
+  '/accounts/bulk-delete',
+  requireAuth,
+  requireRole('ADMIN'),
+  asyncHandler((req, res) => {
+    const parsed = bulkIdsSchema.parse(req.body);
+    const result = AccountService.bulkDeleteAccounts(parsed.ids, req.user?.id ?? null);
+    res.json({
+      success: true,
+      data: result,
+    });
+  })
+);
+
+apiV1Router.get(
+  '/accounts/ids',
+  requireAuth,
+  asyncHandler((req, res) => {
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+    const registrationStatus =
+      typeof req.query.registrationStatus === 'string' ? req.query.registrationStatus : undefined;
+    const verificationStatus =
+      typeof req.query.verificationStatus === 'string' ? req.query.verificationStatus : undefined;
+    const tag = typeof req.query.tag === 'string' ? req.query.tag : undefined;
+
+    const ids = AccountService.listMatchingAccountIds({
+      search,
+      category,
+      registrationStatus,
+      verificationStatus,
+      tag,
+    });
 
     res.json({
       success: true,
       data: {
-        count: lines.length,
-        lines,
-        text: lines.join('\n'),
+        ids,
+        total: ids.length,
       },
     });
   })

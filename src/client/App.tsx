@@ -151,6 +151,8 @@ export function App() {
   >('created_at');
   const [accSortOrder, setAccSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedAccount, setSelectedAccount] = useState<AccountItem | null>(null);
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const lastSelectedAccountIdRef = useRef<string | null>(null);
   const [showCreateAccountModal, setShowCreateAccountModal] = useState(false);
   const [newAccUsername, setNewAccUsername] = useState('');
   const [newAccUserId, setNewAccUserId] = useState('');
@@ -949,9 +951,127 @@ export function App() {
       await api.request(`/accounts/${id}`, { method: 'DELETE' });
       showToast('success', 'Account soft-deleted');
       if (selectedAccount?.id === id) setSelectedAccount(null);
+      setSelectedAccountIds((prev) => prev.filter((sid) => sid !== id));
       await loadAccounts(accountsMeta.page);
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : 'Delete failed');
+    }
+  };
+
+  const handleToggleAccountSelection = (id: string, shiftKey = false) => {
+    const anchorId = lastSelectedAccountIdRef.current;
+    if (shiftKey && anchorId && anchorId !== id) {
+      const startIdx = accounts.findIndex((a) => a.id === anchorId);
+      const endIdx = accounts.findIndex((a) => a.id === id);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const [lo, hi] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+        const rangeIds = accounts.slice(lo, hi + 1).map((a) => a.id);
+        setSelectedAccountIds((prev) => Array.from(new Set([...prev, ...rangeIds])));
+        lastSelectedAccountIdRef.current = id;
+        return;
+      }
+    }
+
+    setSelectedAccountIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+    lastSelectedAccountIdRef.current = id;
+  };
+
+  const handleToggleSelectPage = () => {
+    const pageIds = accounts.map((a) => a.id);
+    if (pageIds.length === 0) return;
+    const allSelected = pageIds.every((id) => selectedAccountIds.includes(id));
+    if (allSelected) {
+      const pageSet = new Set(pageIds);
+      setSelectedAccountIds((prev) => prev.filter((id) => !pageSet.has(id)));
+    } else {
+      setSelectedAccountIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+    }
+  };
+
+  const handleSelectAllFiltered = async () => {
+    try {
+      const q = new URLSearchParams();
+      if (accSearch) q.set('search', accSearch);
+      if (accCategoryFilter) q.set('category', accCategoryFilter);
+      if (accRegStatusFilter) q.set('registrationStatus', accRegStatusFilter);
+      if (accVerifStatusFilter) q.set('verificationStatus', accVerifStatusFilter);
+      const res = await api.request<{ ids: string[]; total: number }>(
+        `/accounts/ids?${q.toString()}`
+      );
+      setSelectedAccountIds(res.data.ids);
+      showToast('success', `${res.data.ids.length} akun sesuai filter dipilih.`);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal memilih semua akun');
+    }
+  };
+
+  const handleBulkCopySelected = async () => {
+    if (selectedAccountIds.length === 0) return;
+    try {
+      const res = await api.request<{ count: number; text: string }>(
+        '/accounts/bulk-export-formatted',
+        {
+          method: 'POST',
+          body: JSON.stringify({ ids: selectedAccountIds }),
+        }
+      );
+      await navigator.clipboard.writeText(res.data.text);
+      showToast(
+        'success',
+        `Disalin ${res.data.count} akun (username:password:cookie) ke clipboard!`
+      );
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal menyalin akun terpilih');
+    }
+  };
+
+  const handleBulkExportSelected = async () => {
+    if (selectedAccountIds.length === 0) return;
+    try {
+      const res = await api.request<{ count: number; text: string }>(
+        '/accounts/bulk-export-formatted',
+        {
+          method: 'POST',
+          body: JSON.stringify({ ids: selectedAccountIds }),
+        }
+      );
+      setExportModalText(res.data.text || 'Tidak ada akun terpilih.');
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal ekspor akun terpilih');
+    }
+  };
+
+  const handleBulkUpdateCategory = async (category: string) => {
+    if (selectedAccountIds.length === 0) return;
+    try {
+      const res = await api.request<{ updatedCount: number }>('/accounts/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedAccountIds, category }),
+      });
+      showToast(
+        'success',
+        `Kategori ${res.data.updatedCount} akun diubah menjadi ${category}.`
+      );
+      await loadAccounts(accountsMeta.page);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal memperbarui kategori');
+    }
+  };
+
+  const handleBulkDeleteSelected = async () => {
+    if (selectedAccountIds.length === 0) return;
+    try {
+      const res = await api.request<{ deletedCount: number }>('/accounts/bulk-delete', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selectedAccountIds }),
+      });
+      showToast('success', `${res.data.deletedCount} akun berhasil dihapus.`);
+      setSelectedAccountIds([]);
+      await loadAccounts(1);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal menghapus akun terpilih');
     }
   };
 
@@ -1120,6 +1240,15 @@ export function App() {
           onCopyAccountFormatted={(id) => void handleCopyAccountFormatted(id)}
           onSelectAccount={(acc) => setSelectedAccount(acc)}
           onDeleteAccount={(id) => void handleDeleteAccount(id)}
+          selectedAccountIds={selectedAccountIds}
+          onToggleAccountSelection={handleToggleAccountSelection}
+          onToggleSelectPage={handleToggleSelectPage}
+          onSelectAllFiltered={() => void handleSelectAllFiltered()}
+          onClearSelection={() => setSelectedAccountIds([])}
+          onBulkCopySelected={() => void handleBulkCopySelected()}
+          onBulkExportSelected={() => void handleBulkExportSelected()}
+          onBulkUpdateCategory={(cat) => void handleBulkUpdateCategory(cat)}
+          onBulkDeleteSelected={() => void handleBulkDeleteSelected()}
         />
       )}
 

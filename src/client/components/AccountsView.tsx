@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Users,
   Download,
@@ -9,6 +9,9 @@ import {
   Trash2,
   ShieldCheck,
   ArrowUpDown,
+  CheckSquare,
+  X,
+  Tag,
 } from 'lucide-react';
 import { AccountItem, PaginatedMeta, UserInfo } from '../api.js';
 import { getStatusBadgeClasses } from './types.js';
@@ -35,10 +38,19 @@ interface AccountsViewProps {
   onCopyAccountFormatted: (accountId: string) => void;
   onSelectAccount: (acc: AccountItem) => void;
   onDeleteAccount: (accountId: string) => void;
+  selectedAccountIds: string[];
+  onToggleAccountSelection: (accountId: string, shiftKey?: boolean) => void;
+  onToggleSelectPage: () => void;
+  onSelectAllFiltered: () => void;
+  onClearSelection: () => void;
+  onBulkCopySelected: () => void;
+  onBulkExportSelected: () => void;
+  onBulkUpdateCategory: (category: string) => void;
+  onBulkDeleteSelected: () => void;
 }
 
 /**
- * Searchable, filterable, Vault-backed repository of registered Roblox accounts.
+ * Searchable, filterable, multi-select Vault repository of registered Roblox accounts.
  */
 export function AccountsView({
   user,
@@ -62,7 +74,28 @@ export function AccountsView({
   onCopyAccountFormatted,
   onSelectAccount,
   onDeleteAccount,
+  selectedAccountIds,
+  onToggleAccountSelection,
+  onToggleSelectPage,
+  onSelectAllFiltered,
+  onClearSelection,
+  onBulkCopySelected,
+  onBulkExportSelected,
+  onBulkUpdateCategory,
+  onBulkDeleteSelected,
 }: AccountsViewProps) {
+  const shiftPressedRef = useRef(false);
+  const [bulkCategory, setBulkCategory] = useState('STANDARD');
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
+
+  const selectedSet = new Set(selectedAccountIds);
+  const allPageSelected = accounts.length > 0 && accounts.every((a) => selectedSet.has(a.id));
+  const somePageSelected = accounts.some((a) => selectedSet.has(a.id)) && !allPageSelected;
+
+  useEffect(() => {
+    setConfirmingBulkDelete(false);
+  }, [selectedAccountIds.length]);
+
   return (
     <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/80 p-4 sm:p-5">
@@ -75,7 +108,7 @@ export function AccountsView({
               Registered Roblox Accounts ({accountsMeta.total})
             </h2>
             <p className="text-xs text-zinc-400">
-              Repositori terindeks &amp; terpaginasi. Kredensial tetap terenkripsi di AES-256-GCM Vault.
+              Repositori terindeks &amp; terpaginasi. Centang akun (tahan Shift untuk rentang) untuk aksi massal.
             </p>
           </div>
         </div>
@@ -174,11 +207,145 @@ export function AccountsView({
         </div>
       </div>
 
+      {/* Contextual Bulk Selection Toolbar */}
+      {selectedAccountIds.length > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions for selected accounts"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-500/30 bg-emerald-950/25 px-4 py-2.5 text-xs"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/15 px-2.5 py-1 font-mono font-semibold text-emerald-300 tabular-nums">
+              <CheckSquare className="h-3.5 w-3.5" />
+              {selectedAccountIds.length} akun dipilih
+            </span>
+
+            {!allPageSelected && accounts.length > 0 && (
+              <button
+                type="button"
+                onClick={onToggleSelectPage}
+                className="rounded-lg border border-zinc-700 bg-zinc-900/90 px-2.5 py-1 font-mono text-[11px] text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+              >
+                Pilih Halaman ({accounts.length})
+              </button>
+            )}
+
+            {accountsMeta.total > accounts.length && selectedAccountIds.length < accountsMeta.total && (
+              <button
+                type="button"
+                onClick={onSelectAllFiltered}
+                className="rounded-lg border border-cyan-500/35 bg-cyan-500/10 px-2.5 py-1 font-mono text-[11px] text-cyan-300 hover:bg-cyan-500/20 cursor-pointer"
+              >
+                Pilih Semua Hasil Filter ({accountsMeta.total})
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onClearSelection}
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-700/80 px-2 py-1 font-mono text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
+            >
+              <X className="h-3 w-3" />
+              Batal Pilih
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onBulkCopySelected}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-3 py-1.5 font-mono text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/25 cursor-pointer"
+            >
+              <Copy className="h-3 w-3" />
+              COPY SELECTED
+            </button>
+
+            <button
+              type="button"
+              onClick={onBulkExportSelected}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-[11px] text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+            >
+              <Download className="h-3 w-3 text-cyan-400" />
+              EXPORT SELECTED
+            </button>
+
+            <div className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950/90 p-0.5">
+              <Tag className="ml-1.5 h-3 w-3 text-zinc-500" />
+              <select
+                aria-label="Bulk category"
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                className="bg-transparent px-1.5 py-1 font-mono text-[11px] text-zinc-200 focus:outline-none"
+              >
+                <option value="STANDARD" className="bg-zinc-950">STANDARD</option>
+                <option value="TRADING" className="bg-zinc-950">TRADING</option>
+                <option value="STORAGE" className="bg-zinc-950">STORAGE</option>
+                <option value="TESTING" className="bg-zinc-950">TESTING</option>
+                <option value="VIP" className="bg-zinc-950">VIP</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => onBulkUpdateCategory(bulkCategory)}
+                className="rounded-md bg-zinc-800 px-2 py-1 font-mono text-[10px] font-semibold text-zinc-200 hover:bg-zinc-700 cursor-pointer"
+              >
+                SET KATEGORI
+              </button>
+            </div>
+
+            {user.role === 'ADMIN' &&
+              (!confirmingBulkDelete ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingBulkDelete(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-1.5 font-mono text-[11px] text-rose-200 hover:bg-rose-900/50 cursor-pointer"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  DELETE ({selectedAccountIds.length})
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingBulkDelete(false);
+                      onBulkDeleteSelected();
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 font-mono text-[11px] font-bold text-white hover:bg-rose-500 cursor-pointer"
+                  >
+                    YAKIN HAPUS {selectedAccountIds.length}?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingBulkDelete(false)}
+                    className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5 font-mono text-[11px] text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-950/60 font-mono text-[11px] uppercase text-zinc-400">
+              <th className="w-11 p-0 text-center">
+                <label className="flex items-center justify-center p-3.5 cursor-pointer">
+                  <input
+                    ref={(el) => {
+                      if (el) el.indeterminate = somePageSelected;
+                    }}
+                    type="checkbox"
+                    aria-label="Pilih semua akun di halaman ini"
+                    checked={allPageSelected}
+                    onChange={onToggleSelectPage}
+                    className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
+                  />
+                </label>
+              </th>
               <th className="p-3.5">Roblox Username</th>
               <th className="p-3.5">User ID</th>
               <th className="p-3.5">Category</th>
@@ -192,92 +359,125 @@ export function AccountsView({
           <tbody className="divide-y divide-zinc-800/60 text-xs">
             {accounts.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-8 text-center font-mono text-zinc-500">
+                <td colSpan={9} className="p-8 text-center font-mono text-zinc-500">
                   No registered accounts match current filters.
                 </td>
               </tr>
             ) : (
-              accounts.map((acc) => (
-                <tr key={acc.id} className="transition hover:bg-zinc-800/30">
-                  <td className="p-3.5 font-mono font-medium text-zinc-100">
-                    {acc.robloxUsername}
-                  </td>
-                  <td className="p-3.5 font-mono tabular-nums text-zinc-300">
-                    {acc.robloxUserId || '—'}
-                  </td>
-                  <td className="p-3.5 font-mono text-zinc-300">{acc.category}</td>
-                  <td className="p-3.5 font-mono">
-                    <span
-                      className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] ${getStatusBadgeClasses(
-                        acc.registrationStatus
-                      )}`}
-                    >
-                      {acc.registrationStatus}
-                    </span>
-                  </td>
-                  <td className="p-3.5 font-mono">
-                    <span
-                      className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] ${getStatusBadgeClasses(
-                        acc.verificationStatus
-                      )}`}
-                    >
-                      {acc.verificationStatus}
-                    </span>
-                  </td>
-                  <td className="p-3.5 font-mono text-[11px]">
-                    {acc.hasVaultCredential ? (
-                      <span className="inline-flex items-center gap-1 text-emerald-400">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        AES-256-GCM
+              accounts.map((acc) => {
+                const isSelected = selectedSet.has(acc.id);
+                return (
+                  <tr
+                    key={acc.id}
+                    className={`transition ${
+                      isSelected
+                        ? 'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12]'
+                        : 'hover:bg-zinc-800/30'
+                    }`}
+                  >
+                    <td className="w-11 p-0 text-center">
+                      <label
+                        onMouseDown={(e) => {
+                          shiftPressedRef.current = e.shiftKey;
+                        }}
+                        className="flex items-center justify-center p-3.5 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`Select account ${acc.robloxUsername}`}
+                          checked={isSelected}
+                          onKeyDown={(e) => {
+                            shiftPressedRef.current = e.shiftKey;
+                          }}
+                          onChange={() => {
+                            const shift = shiftPressedRef.current;
+                            shiftPressedRef.current = false;
+                            onToggleAccountSelection(acc.id, shift);
+                          }}
+                          className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
+                        />
+                      </label>
+                    </td>
+                    <td className="p-3.5 font-mono font-medium text-zinc-100">
+                      {acc.robloxUsername}
+                    </td>
+                    <td className="p-3.5 font-mono tabular-nums text-zinc-300">
+                      {acc.robloxUserId || '—'}
+                    </td>
+                    <td className="p-3.5 font-mono text-zinc-300">{acc.category}</td>
+                    <td className="p-3.5 font-mono">
+                      <span
+                        className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] ${getStatusBadgeClasses(
+                          acc.registrationStatus
+                        )}`}
+                      >
+                        {acc.registrationStatus}
                       </span>
-                    ) : (
-                      <span className="text-zinc-500">NO SECRET</span>
-                    )}
-                  </td>
-                  <td className="p-3.5">
-                    <div className="flex flex-wrap gap-1">
-                      {acc.tags.map((t, idx) => (
-                        <span
-                          key={idx}
-                          className="rounded-md bg-zinc-800/90 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300"
-                        >
-                          #{t}
+                    </td>
+                    <td className="p-3.5 font-mono">
+                      <span
+                        className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] ${getStatusBadgeClasses(
+                          acc.verificationStatus
+                        )}`}
+                      >
+                        {acc.verificationStatus}
+                      </span>
+                    </td>
+                    <td className="p-3.5 font-mono text-[11px]">
+                      {acc.hasVaultCredential ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-400">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          AES-256-GCM
                         </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-3.5 text-right">
-                    <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onCopyAccountFormatted(acc.id)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] text-emerald-300 hover:bg-emerald-500/20 cursor-pointer"
-                      >
-                        <Copy className="h-3 w-3" />
-                        COPY USER:PASS:COOKIE
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onSelectAccount(acc)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-zinc-200 hover:bg-zinc-800 cursor-pointer"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        EDIT
-                      </button>
-                      {user.role === 'ADMIN' && (
+                      ) : (
+                        <span className="text-zinc-500">NO SECRET</span>
+                      )}
+                    </td>
+                    <td className="p-3.5">
+                      <div className="flex flex-wrap gap-1">
+                        {acc.tags.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded-md bg-zinc-800/90 px-1.5 py-0.5 font-mono text-[10px] text-zinc-300"
+                          >
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onDeleteAccount(acc.id)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-rose-500/35 bg-rose-950/30 px-2 py-1 font-mono text-[11px] text-rose-300 hover:bg-rose-900/40 cursor-pointer"
+                          onClick={() => onCopyAccountFormatted(acc.id)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] text-emerald-300 hover:bg-emerald-500/20 cursor-pointer"
                         >
-                          <Trash2 className="h-3 w-3" />
-                          DELETE
+                          <Copy className="h-3 w-3" />
+                          COPY USER:PASS:COOKIE
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        <button
+                          type="button"
+                          onClick={() => onSelectAccount(acc)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          EDIT
+                        </button>
+                        {user.role === 'ADMIN' && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteAccount(acc.id)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-500/35 bg-rose-950/30 px-2 py-1 font-mono text-[11px] text-rose-300 hover:bg-rose-900/40 cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            DELETE
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

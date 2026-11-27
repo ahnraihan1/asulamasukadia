@@ -2,6 +2,14 @@ import crypto from 'node:crypto';
 import { db, AccountRecord } from '../db/index.js';
 import { CredentialVault, PublicCredentialMetadata } from '../vault/credentialVault.js';
 
+export interface AccountFilterParams {
+  search?: string;
+  category?: string;
+  registrationStatus?: string;
+  verificationStatus?: string;
+  tag?: string;
+}
+
 export interface AccountDTO {
   id: string;
   robloxUsername: string;
@@ -45,36 +53,7 @@ export class AccountService {
     const limit = Math.max(1, Math.min(200, params?.limit ?? 25));
     const offset = (page - 1) * limit;
 
-    const conditions: string[] = ['a.deleted_at IS NULL'];
-    const values: (string | number)[] = [];
-
-    if (params?.search && params.search.trim() !== '') {
-      const q = `%${params.search.trim()}%`;
-      conditions.push(
-        '(LOWER(a.roblox_username) LIKE LOWER(?) OR a.roblox_user_id LIKE ? OR LOWER(COALESCE(a.notes, "")) LIKE LOWER(?) OR LOWER(a.tags_json) LIKE LOWER(?))'
-      );
-      values.push(q, q, q, q);
-    }
-
-    if (params?.category) {
-      conditions.push('a.category = ?');
-      values.push(params.category);
-    }
-
-    if (params?.registrationStatus) {
-      conditions.push('a.registration_status = ?');
-      values.push(params.registrationStatus);
-    }
-
-    if (params?.verificationStatus) {
-      conditions.push('a.verification_status = ?');
-      values.push(params.verificationStatus);
-    }
-
-    if (params?.tag) {
-      conditions.push('LOWER(a.tags_json) LIKE LOWER(?)');
-      values.push(`%"${params.tag.trim()}"%`);
-    }
+    const { whereClause, values } = this.buildListWhereClause(params);
 
     const allowedSortColumns: Record<string, string> = {
       created_at: 'a.created_at',
@@ -84,8 +63,6 @@ export class AccountService {
     };
     const sortCol = allowedSortColumns[params?.sortBy ?? 'created_at'] ?? 'a.created_at';
     const sortDir = params?.sortOrder?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-
-    const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
     const countRow = db.raw
       .prepare(`SELECT COUNT(*) as total FROM accounts a ${whereClause}`)
@@ -428,6 +405,243 @@ export class AccountService {
     });
 
     return { insertedCount };
+  }
+
+  /**
+   * Lists all non-deleted account IDs matching the active filter parameters.
+   */
+  public static listMatchingAccountIds(params?: AccountFilterParams): string[] {
+    const { whereClause, values } = this.buildListWhereClause(params);
+    const rows = db.raw
+      .prepare(`SELECT a.id FROM accounts a ${whereClause} ORDER BY a.created_at DESC`)
+      .all(...values) as Array<{ id: string }>;
+    return rows.map((r) => r.id);
+  }
+
+  /**
+   * Formats username:password:cookie lines for all accounts or a specific ID selection.
+   */
+  public static exportFormattedCredentials(ids?: string[]): {
+    count: number;
+    lines: string[];
+    text: string;
+  } {
+    const rows: Array<{
+      roblox_username: string;
+      credential_id: string | null;
+      created_at: string;
+    }> = [];
+    if (!ids) {
+      const allRows = db.raw
+        .prepare(
+          `SELECT roblox_username, credential_id, created_at
+           FROM accounts
+           WHERE deleted_at IS NULL
+           ORDER BY created_at DESC`
+        )
+        .all() as unknown as Array<{
+        roblox_username: string;
+        credential_id: string | null;
+        created_at: string;
+      }>;
+      rows.push(...allRows);
+    } else {
+      const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+      for (const chunk of this.chunkIds(uniqueIds)) {
+        const placeholders = chunk.map(() => '?').join(',');
+        const found = db.raw
+          .prepare(
+            `SELECT roblox_username, credential_id, created_at
+             FROM accounts
+             WHERE deleted_at IS NULL AND id IN (${placeholders})`
+          )
+          .all(...chunk) as unknown as Array<{
+          roblox_username: string;
+          credential_id: string | null;
+          created_at: string;
+        }>;
+        rows.push(...found);
+      }
+      rows.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+
+    const lines = rows.map((r) =>
+      CredentialVault.formatAccountCredentialLine(r.roblox_username, r.credential_id)
+    );
+    return {
+      count: lines.length,
+      lines,
+      text: lines.join('\n'),
+    };
+  }
+
+  /**
+   * Bulk-updates category, registration status, or verification status for selected accounts.
+   */
+  public static bulkUpdateAccounts(
+    ids: string[],
+    updates: {
+      category?: string;
+      registrationStatus?: 'REGISTERED' | 'PENDING_CONFIRMATION' | 'SUSPENDED' | 'ARCHIVED';
+      verificationStatus?: 'UNVERIFIED' | 'VERIFICATION_REQUIRED' | 'VERIFIED';
+    },
+    updatedById?: string | null
+  ): { updatedCount: number } {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+    if (uniqueIds.length === 0) return { updatedCount: 0 };
+
+    const setClauses: string[] = [];
+    const setValues: string[] = [];
+    if (updates.category) {
+      setClauses.push('category = ?');
+      setValues.push(updates.category.toUpperCase());
+    }
+    if (updates.registrationStatus) {
+      setClauses.push('registration_status = ?');
+      setValues.push(updates.registrationStatus);
+    }
+    if (updates.verificationStatus) {
+      setClauses.push('verification_status = ?');
+      setValues.push(updates.verificationStatus);
+    }
+    if (setClauses.length === 0) {
+      return { updatedCount: 0 };
+    }
+
+    const now = new Date().toISOString();
+    setClauses.push('updated_at = ?');
+    setValues.push(now);
+
+    let updatedCount = 0;
+    db.transaction(() => {
+      for (const chunk of this.chunkIds(uniqueIds)) {
+        const placeholders = chunk.map(() => '?').join(',');
+        const res = db.raw
+          .prepare(
+            `UPDATE accounts SET ${setClauses.join(', ')} WHERE deleted_at IS NULL AND id IN (${placeholders})`
+          )
+          .run(...setValues, ...chunk);
+        updatedCount += Number(res.changes ?? 0);
+      }
+
+      db.logActivity({
+        userId: updatedById ?? null,
+        action: 'BULK_UPDATE_ACCOUNTS',
+        entityType: 'ACCOUNT',
+        entityId: null,
+        details: {
+          requestedCount: uniqueIds.length,
+          updatedCount,
+          category: updates.category ?? null,
+          registrationStatus: updates.registrationStatus ?? null,
+          verificationStatus: updates.verificationStatus ?? null,
+        },
+      });
+    });
+
+    return { updatedCount };
+  }
+
+  /**
+   * Soft-deletes multiple accounts and their vault metadata in one transaction.
+   */
+  public static bulkDeleteAccounts(
+    ids: string[],
+    deletedById?: string | null
+  ): { deletedCount: number } {
+    const uniqueIds = Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
+    if (uniqueIds.length === 0) return { deletedCount: 0 };
+
+    const now = new Date().toISOString();
+    let deletedCount = 0;
+
+    db.transaction(() => {
+      for (const chunk of this.chunkIds(uniqueIds)) {
+        const placeholders = chunk.map(() => '?').join(',');
+        const credRows = db.raw
+          .prepare(
+            `SELECT credential_id FROM accounts
+             WHERE deleted_at IS NULL AND id IN (${placeholders}) AND credential_id IS NOT NULL`
+          )
+          .all(...chunk) as Array<{ credential_id: string }>;
+
+        const accRes = db.raw
+          .prepare(
+            `UPDATE accounts SET deleted_at = ?, updated_at = ? WHERE deleted_at IS NULL AND id IN (${placeholders})`
+          )
+          .run(now, now, ...chunk);
+        deletedCount += Number(accRes.changes ?? 0);
+
+        const credIds = credRows.map((r) => r.credential_id);
+        if (credIds.length > 0) {
+          const credPlaceholders = credIds.map(() => '?').join(',');
+          db.raw
+            .prepare(
+              `UPDATE credential_metadata SET deleted_at = ?, updated_at = ? WHERE deleted_at IS NULL AND id IN (${credPlaceholders})`
+            )
+            .run(now, now, ...credIds);
+        }
+      }
+
+      db.logActivity({
+        userId: deletedById ?? null,
+        action: 'BULK_DELETE_ACCOUNTS',
+        entityType: 'ACCOUNT',
+        entityId: null,
+        details: { requestedCount: uniqueIds.length, deletedCount },
+      });
+    });
+
+    return { deletedCount };
+  }
+
+  private static chunkIds(ids: string[], chunkSize = 500): string[][] {
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      chunks.push(ids.slice(i, i + chunkSize));
+    }
+    return chunks;
+  }
+
+  private static buildListWhereClause(params?: AccountFilterParams): {
+    whereClause: string;
+    values: (string | number)[];
+  } {
+    const conditions: string[] = ['a.deleted_at IS NULL'];
+    const values: (string | number)[] = [];
+
+    if (params?.search && params.search.trim() !== '') {
+      const q = `%${params.search.trim()}%`;
+      conditions.push(
+        '(LOWER(a.roblox_username) LIKE LOWER(?) OR a.roblox_user_id LIKE ? OR LOWER(COALESCE(a.notes, "")) LIKE LOWER(?) OR LOWER(a.tags_json) LIKE LOWER(?))'
+      );
+      values.push(q, q, q, q);
+    }
+
+    if (params?.category) {
+      conditions.push('a.category = ?');
+      values.push(params.category);
+    }
+
+    if (params?.registrationStatus) {
+      conditions.push('a.registration_status = ?');
+      values.push(params.registrationStatus);
+    }
+
+    if (params?.verificationStatus) {
+      conditions.push('a.verification_status = ?');
+      values.push(params.verificationStatus);
+    }
+
+    if (params?.tag) {
+      conditions.push('LOWER(a.tags_json) LIKE LOWER(?)');
+      values.push(`%"${params.tag.trim()}"%`);
+    }
+
+    return {
+      whereClause: `WHERE ${conditions.join(' AND ')}`,
+      values,
+    };
   }
 
   private static mapRowToDTO(

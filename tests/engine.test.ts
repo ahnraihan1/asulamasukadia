@@ -1618,5 +1618,88 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         (globalThis as any).HTMLSelectElement = origHtmlSelect;
       }
     }, 30000);
+
+    it('supports account selection filtering, bulk export, bulk category update, and RBAC-enforced bulk delete', async () => {
+      const adminLogin = await request(app).post('/api/v1/auth/login').send({
+        username: 'admin',
+        password: 'Admin@RobloxEngine2026!',
+      });
+      const adminToken = adminLogin.body.data.token as string;
+
+      const operatorLogin = await request(app).post('/api/v1/auth/login').send({
+        username: 'operator',
+        password: 'Operator@RobloxEngine2026!',
+      });
+      const operatorToken = operatorLogin.body.data.token as string;
+
+      const acc1 = await request(app)
+        .post('/api/v1/accounts')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ robloxUsername: 'selAccOne11', password: 'PassSelect123!', category: 'STANDARD' });
+      const acc2 = await request(app)
+        .post('/api/v1/accounts')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ robloxUsername: 'selAccTwo22', password: 'PassSelect456!', category: 'TRADING' });
+      const acc3 = await request(app)
+        .post('/api/v1/accounts')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ robloxUsername: 'selAccThree3', password: 'PassSelect789!', category: 'STANDARD' });
+
+      expect(acc1.status).toBe(201);
+      expect(acc2.status).toBe(201);
+      expect(acc3.status).toBe(201);
+
+      const id1 = acc1.body.data.id as string;
+      const id2 = acc2.body.data.id as string;
+      const id3 = acc3.body.data.id as string;
+
+      // Filter IDs by category=STANDARD
+      const idsRes = await request(app)
+        .get('/api/v1/accounts/ids?category=STANDARD')
+        .set('Authorization', `Bearer ${operatorToken}`);
+      expect(idsRes.status).toBe(200);
+      expect(idsRes.body.data.ids).toContain(id1);
+      expect(idsRes.body.data.ids).toContain(id3);
+      expect(idsRes.body.data.ids).not.toContain(id2);
+
+      // Bulk export ONLY selected accounts (id1 and id2)
+      const exportRes = await request(app)
+        .post('/api/v1/accounts/bulk-export-formatted')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ ids: [id1, id2] });
+      expect(exportRes.status).toBe(200);
+      expect(exportRes.body.data.count).toBe(2);
+      expect(exportRes.body.data.text).toContain('selAccOne11');
+      expect(exportRes.body.data.text).toContain('selAccTwo22');
+      expect(exportRes.body.data.text).not.toContain('selAccThree3');
+
+      // Operator can bulk-update category
+      const updateRes = await request(app)
+        .post('/api/v1/accounts/bulk-update')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ ids: [id1, id3], category: 'VIP' });
+      expect(updateRes.status).toBe(200);
+      expect(updateRes.body.data.updatedCount).toBe(2);
+
+      // Operator CANNOT bulk-delete (403)
+      const opDelete = await request(app)
+        .post('/api/v1/accounts/bulk-delete')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ ids: [id1] });
+      expect(opDelete.status).toBe(403);
+
+      // Admin bulk-deletes [id1, id2], leaving id3 intact
+      const adminDelete = await request(app)
+        .post('/api/v1/accounts/bulk-delete')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ ids: [id1, id2] });
+      expect(adminDelete.status).toBe(200);
+      expect(adminDelete.body.data.deletedCount).toBe(2);
+
+      const remainingIds = await request(app)
+        .get('/api/v1/accounts/ids')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(remainingIds.body.data.ids).toEqual([id3]);
+    });
   });
 });
