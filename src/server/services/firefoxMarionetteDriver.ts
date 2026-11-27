@@ -828,6 +828,8 @@ export function buildFirefoxDataSaverPrefs(enabled = true): string[] {
     'user_pref("browser.region.network.url", "");',
     'user_pref("app.update.auto", false);',
     'user_pref("extensions.update.enabled", false);',
+    'user_pref("extensions.systemAddon.update.enabled", false);',
+    'user_pref("extensions.systemAddon.update.url", "");',
     'user_pref("extensions.blocklist.enabled", false);',
     'user_pref("extensions.getAddons.cache.enabled", false);',
     'user_pref("services.settings.poll_interval", 31536000);',

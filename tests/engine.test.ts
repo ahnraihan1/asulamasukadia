@@ -656,6 +656,7 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
       expect(isBlockedByDataSaver('clients2.google.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('mozilla.cloudflare-dns.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('ciscobinary.openh264.org', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('archive.mozilla.org', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('redirector.gvt1.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('assetdelivery.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('catalog.roblox.com', { dataSaver: true })).toBe(true);
