@@ -1673,7 +1673,7 @@ export function App() {
                           </span>
                         </div>
                         <div className="text-[11px] font-mono text-zinc-400 pl-5">
-                          Otomatis memblokir Google SafeBrowsing (~18 MB/sesi), Telemetry/Merino/Iklan/Remote Settings Firefox (~6 MB/sesi), GTM/Analytics/Sentry, mencegah tab lama (Discord, dll.) ikut terbuka, menghentikan muatan `/home` setelah cookie tersimpan, &amp; mempertahankan cache JS/CSS.
+                          Otomatis memblokir Google SafeBrowsing (~18 MB/sesi), Telemetry/Merino/GMP/Widevine/DoH Firefox (~10–25 MB/profil baru), GTM/Analytics/Sentry, domain `/home` (`assetdelivery`/`catalog`/`groups`), melewatkan API solver (OMOcaptcha/YesCaptcha) langsung tanpa proxy, menghentikan muatan `/home` setelah cookie tersimpan, &amp; memaksimalkan cache JS/CSS/font.
                         </div>
 
                         <label className="flex items-center space-x-2 text-xs font-mono text-zinc-200 cursor-pointer pl-5 pt-1">
@@ -1683,7 +1683,7 @@ export function App() {
                             onChange={(e) => setProxyBlockHeavyMedia(e.target.checked)}
                           />
                           <span>
-                            Hemat Ekstra (Opsional): Blokir Gambar Latar &amp; Web Font Roblox (Nonaktifkan bila CAPTCHA sering <em>Please try again</em>)
+                            Hemat Ekstra (Aman CAPTCHA): Blokir Thumbnail Game &amp; Avatar (`/home`) — Font &amp; UI CreateAccount Tetap Aman di-Cache
                           </span>
                         </label>
 

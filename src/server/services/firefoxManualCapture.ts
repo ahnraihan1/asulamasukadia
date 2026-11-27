@@ -10,6 +10,7 @@ import {
   buildFirefoxUniqueAccountFingerprintPrefs,
   copyFirefoxProfileSnapshot,
   detectFirefoxProfiles,
+  FIREFOX_PROXY_BYPASS_LIST,
   getMasterFirefoxProfileDir,
   hasValidMasterFirefoxProfile,
   isFirefoxProfileLocked,
@@ -70,7 +71,7 @@ export function openFirefoxNormally(params: {
         );
       }
       prefsLines.push(
-        'user_pref("network.proxy.no_proxies_on", "localhost, 127.0.0.1");',
+        `user_pref("network.proxy.no_proxies_on", ${JSON.stringify(FIREFOX_PROXY_BYPASS_LIST)});`,
         'user_pref("network.proxy.allow_hijacking_localhost", false);',
         'user_pref("signon.autologin.proxy", true);'
       );

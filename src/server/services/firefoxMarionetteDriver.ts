@@ -752,10 +752,18 @@ export function applyWindowRectAccountJitter(rect: WindowRect | null): WindowRec
 }
 
 /**
+ * Daftar pengecualian proxy untuk loopback RAGE serta domain API solver CAPTCHA pihak ketiga,
+ * sehingga trafik API solver memakai internet langsung (hemat kuota DataImpulse) tanpa menyentuh domain Roblox/Arkose.
+ */
+export const FIREFOX_PROXY_BYPASS_LIST =
+  'localhost, 127.0.0.1, .omocaptcha.com, .yescaptcha.com, .2captcha.com, .capsolver.com, .capmonster.cloud, .anti-captcha.com, .ez-captcha.com';
+
+/**
  * Menghasilkan daftar `user_pref` Firefox untuk mode hemat kuota proxy:
  * mematikan SafeBrowsing (~18 MB/sesi), Telemetry, Merino/NewTab sponsored,
- * Remote Settings, Captive Portal, Push, prefetching, dan pemulihan tab lama (Discord, dll),
- * sambil mengaktifkan cache disk 512 MB agar JS/CSS Roblox dipakai ulang antar-akun.
+ * Remote Settings, Captive Portal, Push, prefetching, download ulang GMP/OpenH264/Widevine,
+ * DNS-over-HTTPS (TRR), ML/AI background, dan pemulihan tab lama (Discord, dll),
+ * sambil mengoptimalkan cache disk 512 MB agar JS/CSS/font Roblox dipakai ulang antar-akun.
  */
 export function buildFirefoxDataSaverPrefs(enabled = true): string[] {
   if (!enabled) return [];
@@ -803,18 +811,30 @@ export function buildFirefoxDataSaverPrefs(enabled = true): string[] {
     'user_pref("network.connectivity-service.enabled", false);',
     'user_pref("dom.push.enabled", false);',
     'user_pref("dom.push.connection.enabled", false);',
+    'user_pref("network.trr.mode", 5);',
     'user_pref("network.dns.disablePrefetch", true);',
     'user_pref("network.prefetch-next", false);',
     'user_pref("network.predictor.enabled", false);',
     'user_pref("network.http.speculative-parallel-limit", 0);',
     'user_pref("browser.places.speculativeConnect.enabled", false);',
+    'user_pref("media.gmp-provider.enabled", false);',
+    'user_pref("media.gmp-gmpopenh264.enabled", false);',
+    'user_pref("media.gmp-widevinecdm.enabled", false);',
+    'user_pref("media.gmp-manager.url", "");',
+    'user_pref("browser.ml.enable", false);',
+    'user_pref("browser.ml.chat.enabled", false);',
+    'user_pref("extensions.ml.enabled", false);',
+    'user_pref("dom.private-attribution.submission.enabled", false);',
+    'user_pref("browser.region.network.url", "");',
     'user_pref("app.update.auto", false);',
     'user_pref("extensions.update.enabled", false);',
+    'user_pref("extensions.blocklist.enabled", false);',
     'user_pref("extensions.getAddons.cache.enabled", false);',
     'user_pref("services.settings.poll_interval", 31536000);',
     'user_pref("browser.cache.disk.enable", true);',
     'user_pref("browser.cache.disk.capacity", 524288);',
     'user_pref("browser.cache.disk.smart_size.enabled", false);',
+    'user_pref("browser.cache.check_doc_frequency", 2);',
     'user_pref("browser.cache.memory.enable", true);',
   ];
 }
@@ -913,7 +933,9 @@ export class FirefoxMarionetteSession {
         const host = parsedUrl.hostname;
         const port = Number(parsedUrl.port || 80);
         injectedPrefs.push(`user_pref("network.proxy.type", 1);`);
-        injectedPrefs.push(`user_pref("network.proxy.no_proxies_on", "localhost, 127.0.0.1");`);
+        injectedPrefs.push(
+          `user_pref("network.proxy.no_proxies_on", ${JSON.stringify(FIREFOX_PROXY_BYPASS_LIST)});`
+        );
         injectedPrefs.push(`user_pref("network.proxy.allow_hijacking_localhost", false);`);
         if (parsedUrl.protocol.startsWith('socks')) {
           injectedPrefs.push(`user_pref("network.proxy.socks", ${JSON.stringify(host)});`);

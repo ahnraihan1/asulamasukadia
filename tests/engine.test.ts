@@ -13,6 +13,7 @@ import {
   buildFirefoxDataSaverPrefs,
   buildFirefoxDisableWebAuthnPrefs,
   buildFirefoxUniqueAccountFingerprintPrefs,
+  FIREFOX_PROXY_BYPASS_LIST,
   prepareMainFirefoxProfileForWorker,
 } from '../src/server/services/firefoxMarionetteDriver.js';
 import {
@@ -653,18 +654,29 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
       expect(isBlockedByDataSaver('ecsv2.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('locale.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('clients2.google.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('mozilla.cloudflare-dns.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('ciscobinary.openh264.org', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('redirector.gvt1.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('assetdelivery.roblox.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('catalog.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('apis.roblox.com', { dataSaver: true })).toBe(false);
       expect(
         isBlockedByDataSaver('prod-games-particle.merino.prod.webservices.mozgcp.net', {
           dataSaver: true,
         })
       ).toBe(true);
-      expect(isBlockedByDataSaver('images.rbxcdn.com', { dataSaver: true, blockHeavyMedia: false })).toBe(
+      // Font & UI CreateAccount tetap diizinkan agar Arkose/PerimeterX tidak memicu "Please try again"
+      expect(isBlockedByDataSaver('images.rbxcdn.com', { dataSaver: true, blockHeavyMedia: true })).toBe(
         false
       );
-      expect(isBlockedByDataSaver('images.rbxcdn.com', { dataSaver: true, blockHeavyMedia: true })).toBe(
-        true
+      expect(isBlockedByDataSaver('fonts.gstatic.com', { dataSaver: true, blockHeavyMedia: true })).toBe(
+        false
       );
+      expect(isBlockedByDataSaver('fonts.googleapis.com', { dataSaver: true, blockHeavyMedia: true })).toBe(
+        false
+      );
+      expect(isBlockedByDataSaver('tr.rbxcdn.com', { dataSaver: true, blockHeavyMedia: false })).toBe(false);
+      expect(isBlockedByDataSaver('tr.rbxcdn.com', { dataSaver: true, blockHeavyMedia: true })).toBe(true);
       expect(isBlockedByDataSaver('t3.rbxcdn.com', { dataSaver: true, blockHeavyMedia: true })).toBe(true);
       expect(isBlockedByDataSaver('roblox-api.arkoselabs.com', { dataSaver: true, blockHeavyMedia: true })).toBe(
         false
@@ -713,7 +725,7 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
 
       try {
         const rBlocked1 = await sendConnect('safebrowsing.googleapis.com:443');
-        const rBlocked2 = await sendConnect('images.rbxcdn.com:443');
+        const rBlocked2 = await sendConnect('tr.rbxcdn.com:443');
         const rBlocked3 = await sendConnect('www.googletagmanager.com:443');
         expect(rBlocked1).toContain('403 Forbidden');
         expect(rBlocked2).toContain('403 Forbidden');
@@ -734,6 +746,16 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         expect(prefs).toContain('toolkit.telemetry.enabled", false');
         expect(prefs).toContain('browser.startup.page", 0');
         expect(prefs).toContain('browser.cache.disk.enable", true');
+        expect(prefs).toContain('network.trr.mode", 5');
+        expect(prefs).toContain('media.gmp-provider.enabled", false');
+        expect(prefs).toContain('browser.cache.check_doc_frequency", 2');
+
+        expect(FIREFOX_PROXY_BYPASS_LIST).toContain('localhost');
+        expect(FIREFOX_PROXY_BYPASS_LIST).toContain('127.0.0.1');
+        expect(FIREFOX_PROXY_BYPASS_LIST).toContain('.omocaptcha.com');
+        expect(FIREFOX_PROXY_BYPASS_LIST).toContain('.yescaptcha.com');
+        expect(FIREFOX_PROXY_BYPASS_LIST).not.toContain('roblox.com');
+        expect(FIREFOX_PROXY_BYPASS_LIST).not.toContain('arkoselabs.com');
 
         const webAuthnPrefs = buildFirefoxDisableWebAuthnPrefs().join('\n');
         expect(webAuthnPrefs).toContain('user_pref("security.webauth.webauthn", false);');

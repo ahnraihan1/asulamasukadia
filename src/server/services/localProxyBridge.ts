@@ -36,11 +36,23 @@ export const DATA_SAVER_BLOCKED_EXACT = new Set<string>([
   'ads.mozilla.org',
   'ads-img.mozilla.org',
   'push.services.mozilla.com',
+  'mozilla.cloudflare-dns.com',
+  'ciscobinary.openh264.org',
+  'redirector.gvt1.com',
+  'edgedl.me.gvt1.com',
+  'dl.google.com',
   'firefox.settings.services.mozilla.com',
   'firefox-settings-attachments.cdn.mozilla.net',
   'content-signature-2.cdn.mozilla.net',
   'snippets.cdn.mozilla.net',
+  'aus4.mozilla.org',
   'aus5.mozilla.org',
+  'normandy.cdn.mozilla.net',
+  'versioncheck.addons.mozilla.org',
+  'addons.mozilla.org',
+  'services.addons.mozilla.org',
+  'codepush.appcenter.ms',
+  'self.events.data.microsoft.com',
   'shavar.services.mozilla.com',
   'tracking-protection.cdn.mozilla.net',
   'spocs.getpocket.com',
@@ -78,6 +90,18 @@ export const DATA_SAVER_BLOCKED_EXACT = new Set<string>([
   'notifications.roblox.com',
   'realtime.roblox.com',
   'voice.roblox.com',
+  'assetdelivery.roblox.com',
+  'catalog.roblox.com',
+  'groups.roblox.com',
+  'develop.roblox.com',
+  'publish.roblox.com',
+  'billing.roblox.com',
+  'contacts.roblox.com',
+  'followings.roblox.com',
+  'trades.roblox.com',
+  'premiumfeatures.roblox.com',
+  'client-telemetry.roblox.com',
+  'telemetry.roblox.com',
 ]);
 
 export const DATA_SAVER_BLOCKED_SUFFIXES = [
@@ -87,11 +111,11 @@ export const DATA_SAVER_BLOCKED_SUFFIXES = [
   '.ingest.us.sentry.io',
 ];
 
+// Catatan keamanan CAPTCHA: JANGAN memblokir fonts.gstatic.com, fonts.googleapis.com, atau images.rbxcdn.com
+// karena perubahan metrik font/Canvas dan gagal muat UI CreateAccount dapat memicu "Please try again" di Arkose.
+// Ketiganya tetap hemat karena otomatis tersimpan di disk cache Firefox (cache2/).
 export const HEAVY_MEDIA_BLOCKED_EXACT = new Set<string>([
-  'images.rbxcdn.com',
   'tr.rbxcdn.com',
-  'fonts.gstatic.com',
-  'fonts.googleapis.com',
 ]);
 
 /**
