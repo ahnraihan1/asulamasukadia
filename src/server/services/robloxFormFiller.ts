@@ -1070,8 +1070,8 @@ export function buildManualUserscriptSource(bridgeBaseUrl = 'http://127.0.0.1:40
   return `// ==UserScript==
 // @name         RAGE - Roblox CreateAccount Autofill (0-Klik)
 // @namespace    http://127.0.0.1:4000/
-// @version      1.5.0
-// @description  Isi otomatis form CreateAccount Roblox per-worker (cookie loopback bersih, warmup PX, auto-recovery username, watchdog klik Continue/Add password/Sign Up, & close /home)
+// @version      1.5.1
+// @description  Isi otomatis form CreateAccount Roblox per-worker (cookie loopback bersih, warmup PX, auto-recovery username, watchdog klik Continue/Add password/Sign Up, & cutoff /home 0-kuota)
 // @match        https://www.roblox.com/CreateAccount*
 // @match        https://www.roblox.com/createaccount*
 // @match        https://web.roblox.com/CreateAccount*
@@ -1095,8 +1095,11 @@ export function buildManualUserscriptSource(bridgeBaseUrl = 'http://127.0.0.1:40
   }
 
   var initialWorkerId = resolveWorkerId();
+  var homeHalted = false;
 
-  if (/\\/home/i.test(location.pathname)) {
+  function haltHomeAndSignal() {
+    if (homeHalted) return;
+    homeHalted = true;
     var homeWid = resolveWorkerId() || initialWorkerId;
     try {
       GM_xmlhttpRequest({
@@ -1106,13 +1109,26 @@ export function buildManualUserscriptSource(bridgeBaseUrl = 'http://127.0.0.1:40
         data: JSON.stringify({ workerId: homeWid ? Number(homeWid) : 0, url: location.href })
       });
     } catch (_e) {}
-    // Hemat kuota: hentikan seluruh request apis.roblox.com & thumbnail di /home seketika (0ms) saat document-start
+    // Hemat kuota ekstrem: stop parsing /home & pindah ke about:blank dalam ~80ms agar apis.roblox.com (omni/home) tidak sempat tereksekusi
     try { window.stop(); } catch (_e) {}
     setTimeout(function() {
       try { window.stop(); } catch (_e) {}
-    }, 120);
+      try { window.location.replace('about:blank'); } catch (_e) {}
+    }, 80);
+  }
+
+  if (/\\/home/i.test(location.pathname)) {
+    haltHomeAndSignal();
     return;
   }
+
+  // Pantau perpindahan SPA (pushState) dari CreateAccount -> /home agar tetap memutus apis.roblox.com /home seketika
+  var spaHomeWatch = setInterval(function() {
+    if (/\\/home/i.test(location.pathname)) {
+      clearInterval(spaHomeWatch);
+      haltHomeAndSignal();
+    }
+  }, 200);
 
   var fill = ${ROBLOX_SIGNUP_AUTOFILL_BROWSER_FN};
   var started = false;

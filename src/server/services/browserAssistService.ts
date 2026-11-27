@@ -2138,7 +2138,8 @@ export class BrowserAssistService {
         !launchedHandle.wasMainProfileLockedBeforeLaunch;
 
       const waitHomeRedirect = async () => {
-        const homeWaitDeadline = Date.now() + 5000;
+        // Beri jeda singkat (maks ~1 detik) bila signal /home belum tiba, lalu langsung tutup Firefox agar /home tidak menyedot apis.roblox.com
+        const homeWaitDeadline = Date.now() + 1000;
         while (Date.now() < homeWaitDeadline && !this.stopRequested) {
           const sigWorker = this.manualHomeRedirectSignals.get(workerId) ?? 0;
           const sigFallback =
@@ -2150,7 +2151,7 @@ export class BrowserAssistService {
           ) {
             break;
           }
-          await new Promise((r) => setTimeout(r, 400));
+          await new Promise((r) => setTimeout(r, 200));
         }
       };
 
@@ -2159,7 +2160,7 @@ export class BrowserAssistService {
           timedOut = true;
           break;
         }
-        await new Promise((r) => setTimeout(r, 1200));
+        await new Promise((r) => setTimeout(r, 500));
         const current = readRoblosecurityFromProfile(profileDirToUse);
         if (current && current !== baselineCookie) {
           cookie = current;

@@ -659,6 +659,10 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
       expect(isBlockedByDataSaver('redirector.gvt1.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('assetdelivery.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('catalog.roblox.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('privatemessages.roblox.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('usermoderation.roblox.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('realtime-signalr.roblox.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('sentry-relay.rbxinfra.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('apis.roblox.com', { dataSaver: true })).toBe(false);
       expect(
         isBlockedByDataSaver('prod-games-particle.merino.prod.webservices.mozgcp.net', {
@@ -753,7 +757,9 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         expect(FIREFOX_PROXY_BYPASS_LIST).toContain('localhost');
         expect(FIREFOX_PROXY_BYPASS_LIST).toContain('127.0.0.1');
         expect(FIREFOX_PROXY_BYPASS_LIST).toContain('.omocaptcha.com');
+        expect(FIREFOX_PROXY_BYPASS_LIST).toContain('.omocaptcha.net');
         expect(FIREFOX_PROXY_BYPASS_LIST).toContain('.yescaptcha.com');
+        expect(FIREFOX_PROXY_BYPASS_LIST).toContain('.cloudemulator.net');
         expect(FIREFOX_PROXY_BYPASS_LIST).not.toContain('roblox.com');
         expect(FIREFOX_PROXY_BYPASS_LIST).not.toContain('arkoselabs.com');
 

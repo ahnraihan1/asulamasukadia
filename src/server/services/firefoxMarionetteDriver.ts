@@ -756,7 +756,7 @@ export function applyWindowRectAccountJitter(rect: WindowRect | null): WindowRec
  * sehingga trafik API solver memakai internet langsung (hemat kuota DataImpulse) tanpa menyentuh domain Roblox/Arkose.
  */
 export const FIREFOX_PROXY_BYPASS_LIST =
-  'localhost, 127.0.0.1, .omocaptcha.com, .yescaptcha.com, .2captcha.com, .capsolver.com, .capmonster.cloud, .anti-captcha.com, .ez-captcha.com';
+  'localhost, 127.0.0.1, .omocaptcha.com, .omocaptcha.net, .yescaptcha.com, .cloudemulator.net, .2captcha.com, .capsolver.com, .capmonster.cloud, .anti-captcha.com, .ez-captcha.com';
 
 /**
  * Menghasilkan daftar `user_pref` Firefox untuk mode hemat kuota proxy:
@@ -832,7 +832,8 @@ export function buildFirefoxDataSaverPrefs(enabled = true): string[] {
     'user_pref("extensions.getAddons.cache.enabled", false);',
     'user_pref("services.settings.poll_interval", 31536000);',
     'user_pref("browser.cache.disk.enable", true);',
-    'user_pref("browser.cache.disk.capacity", 524288);',
+    'user_pref("browser.cache.disk.capacity", 1048576);',
+    'user_pref("browser.cache.disk.max_entry_size", 51200);',
     'user_pref("browser.cache.disk.smart_size.enabled", false);',
     'user_pref("browser.cache.check_doc_frequency", 2);',
     'user_pref("browser.cache.memory.enable", true);',
