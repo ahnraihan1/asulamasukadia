@@ -947,6 +947,19 @@ apiV1Router.post(
   })
 );
 
+apiV1Router.post(
+  '/accounts/delete-all',
+  requireAuth,
+  requireRole('ADMIN'),
+  asyncHandler((req, res) => {
+    const result = AccountService.deleteAllAccounts(req.user?.id ?? null);
+    res.json({
+      success: true,
+      data: result,
+    });
+  })
+);
+
 apiV1Router.get(
   '/accounts/ids',
   requireAuth,

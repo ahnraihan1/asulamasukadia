@@ -47,6 +47,7 @@ interface AccountsViewProps {
   onBulkExportSelected: () => void;
   onBulkUpdateCategory: (category: string) => void;
   onBulkDeleteSelected: () => void;
+  onDeleteAllAccounts: () => void;
 }
 
 /**
@@ -83,10 +84,12 @@ export function AccountsView({
   onBulkExportSelected,
   onBulkUpdateCategory,
   onBulkDeleteSelected,
+  onDeleteAllAccounts,
 }: AccountsViewProps) {
   const shiftPressedRef = useRef(false);
   const [bulkCategory, setBulkCategory] = useState('STANDARD');
   const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false);
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
 
   const selectedSet = new Set(selectedAccountIds);
   const allPageSelected = accounts.length > 0 && accounts.every((a) => selectedSet.has(a.id));
@@ -95,6 +98,10 @@ export function AccountsView({
   useEffect(() => {
     setConfirmingBulkDelete(false);
   }, [selectedAccountIds.length]);
+
+  useEffect(() => {
+    setConfirmingDeleteAll(false);
+  }, [accountsMeta.total]);
 
   return (
     <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 overflow-hidden">
@@ -122,6 +129,38 @@ export function AccountsView({
             <Download className="h-3.5 w-3.5 text-emerald-400" />
             EXPORT ALL (USER:PASS:COOKIE)
           </button>
+          {user.role === 'ADMIN' &&
+            accountsMeta.total > 0 &&
+            (!confirmingDeleteAll ? (
+              <button
+                type="button"
+                onClick={() => setConfirmingDeleteAll(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-950/35 px-3 py-2 font-mono text-xs text-rose-200 hover:bg-rose-900/50 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                DELETE ALL
+              </button>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/50 bg-rose-950/60 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmingDeleteAll(false);
+                    onDeleteAllAccounts();
+                  }}
+                  className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 font-mono text-xs font-bold text-white hover:bg-rose-500 cursor-pointer"
+                >
+                  YAKIN HAPUS SEMUA ({accountsMeta.total})?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDeleteAll(false)}
+                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 font-mono text-xs text-zinc-200 hover:bg-zinc-800 cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            ))}
           <button
             type="button"
             onClick={onOpenCreateModal}

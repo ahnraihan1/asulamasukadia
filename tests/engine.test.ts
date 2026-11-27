@@ -1700,6 +1700,24 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         .get('/api/v1/accounts/ids')
         .set('Authorization', `Bearer ${adminToken}`);
       expect(remainingIds.body.data.ids).toEqual([id3]);
+
+      // Operator CANNOT delete all (403)
+      const opDeleteAll = await request(app)
+        .post('/api/v1/accounts/delete-all')
+        .set('Authorization', `Bearer ${operatorToken}`);
+      expect(opDeleteAll.status).toBe(403);
+
+      // Admin CAN delete all remaining accounts cleanly
+      const adminDeleteAll = await request(app)
+        .post('/api/v1/accounts/delete-all')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(adminDeleteAll.status).toBe(200);
+      expect(adminDeleteAll.body.data.deletedCount).toBe(1);
+
+      const afterDeleteAllIds = await request(app)
+        .get('/api/v1/accounts/ids')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(afterDeleteAllIds.body.data.ids).toEqual([]);
     });
   });
 });

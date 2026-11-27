@@ -595,6 +595,40 @@ export class AccountService {
     return { deletedCount };
   }
 
+  /**
+   * Soft-deletes every active account and its linked credential metadata in one atomic transaction.
+   */
+  public static deleteAllAccounts(deletedById?: string | null): { deletedCount: number } {
+    const now = new Date().toISOString();
+    let deletedCount = 0;
+
+    db.transaction(() => {
+      db.raw
+        .prepare(
+          `UPDATE credential_metadata
+           SET deleted_at = ?, updated_at = ?
+           WHERE deleted_at IS NULL
+             AND id IN (SELECT credential_id FROM accounts WHERE deleted_at IS NULL AND credential_id IS NOT NULL)`
+        )
+        .run(now, now);
+
+      const accRes = db.raw
+        .prepare(`UPDATE accounts SET deleted_at = ?, updated_at = ? WHERE deleted_at IS NULL`)
+        .run(now, now);
+      deletedCount = Number(accRes.changes ?? 0);
+
+      db.logActivity({
+        userId: deletedById ?? null,
+        action: 'DELETE_ALL_ACCOUNTS',
+        entityType: 'ACCOUNT',
+        entityId: null,
+        details: { deletedCount },
+      });
+    });
+
+    return { deletedCount };
+  }
+
   private static chunkIds(ids: string[], chunkSize = 500): string[][] {
     const chunks: string[][] = [];
     for (let i = 0; i < ids.length; i += chunkSize) {

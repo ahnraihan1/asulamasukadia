@@ -1075,6 +1075,23 @@ export function App() {
     }
   };
 
+  const handleDeleteAllAccounts = async () => {
+    try {
+      const res = await api.request<{ deletedCount: number }>('/accounts/delete-all', {
+        method: 'POST',
+      });
+      showToast(
+        'success',
+        `Seluruh ${res.data.deletedCount} akun berhasil dihapus dari Account Vault.`
+      );
+      setSelectedAccount(null);
+      setSelectedAccountIds([]);
+      await loadAccounts(1);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal menghapus seluruh akun');
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!settingsData) return;
@@ -1249,6 +1266,7 @@ export function App() {
           onBulkExportSelected={() => void handleBulkExportSelected()}
           onBulkUpdateCategory={(cat) => void handleBulkUpdateCategory(cat)}
           onBulkDeleteSelected={() => void handleBulkDeleteSelected()}
+          onDeleteAllAccounts={() => void handleDeleteAllAccounts()}
         />
       )}
 
