@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique @db.VarChar(64)
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.Text
+  role         String    @default("OPERATOR") @db.VarChar(32)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  accounts           Account[]
+  generationJobs     AccountGenerationJob[]
+  registrationEvents RegistrationEvent[]
+  activityLogs       ActivityLog[]
+
+  @@index([role, isActive])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model CredentialMetadata {
+  id                String    @id @default(uuid()) @db.Uuid
+  keyVersion        Int       @default(1) @map("key_version")
+  algorithm         String    @default("AES-256-GCM") @db.VarChar(32)
+  ivHex             String    @map("iv_hex") @db.VarChar(64)
+  authTagHex        String    @map("auth_tag_hex") @db.VarChar(64)
+  ciphertextHex     String    @map("ciphertext_hex") @db.Text
+  secretType        String    @default("PASSWORD") @map("secret_type") @db.VarChar(32)
+  fingerprintSha256 String    @map("fingerprint_sha256") @db.VarChar(64)
+  rotatedAt         DateTime? @map("rotated_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  account              Account?
+  generatedAccountData GeneratedAccountData?
+
+  @@index([fingerprintSha256])
+  @@index([secretType, deletedAt])
+  @@map("credential_metadata")
+}
+
+model Account {
+  id                 String    @id @default(uuid()) @db.Uuid
+  robloxUsername     String    @unique @map("roblox_username") @db.VarChar(64)
+  robloxUserId       String?   @unique @map("roblox_user_id") @db.VarChar(64)
+  credentialId       String?   @unique @map("credential_id") @db.Uuid
+  category           String    @default("STANDARD") @db.VarChar(64)
+  registrationStatus String    @default("REGISTERED") @map("registration_status") @db.VarChar(32)
+  verificationStatus String    @default("UNVERIFIED") @map("verification_status") @db.VarChar(32)
+  notes              String?   @db.Text
+  tags               String[]  @default([])
+  createdById        String?   @map("created_by_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  credential           CredentialMetadata?   @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  createdBy            User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  generatedAccountData GeneratedAccountData?
+  registrationEvents   RegistrationEvent[]
+
+  @@index([category, registrationStatus, verificationStatus])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("accounts")
+}
+
+model AccountGenerationJob {
+  id                        String    @id @default(uuid()) @db.Uuid
+  name                      String    @db.VarChar(128)
+  status                    String    @default("PENDING") @db.VarChar(32)
+  totalCount                Int       @default(0) @map("total_count")
+  processedCount            Int       @default(0) @map("processed_count")
+  completedCount            Int       @default(0) @map("completed_count")
+  failedCount               Int       @default(0) @map("failed_count")
+  verificationRequiredCount Int       @default(0) @map("verification_required_count")
+  configJson                String    @default("{}") @map("config_json") @db.Text
+  errorMessage              String?   @map("error_message") @db.Text
+  startedAt                 DateTime? @map("started_at")
+  pausedAt                  DateTime? @map("paused_at")
+  completedAt               DateTime? @map("completed_at")
+  canceledAt                DateTime? @map("canceled_at")
+  createdById               String?   @map("created_by_id") @db.Uuid
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  createdBy          User?                  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  generatedRecords   GeneratedAccountData[]
+  registrationEvents RegistrationEvent[]
+
+  @@index([status, createdAt])
+  @@index([createdById])
+  @@map("account_generation_jobs")
+}
+
+model GeneratedAccountData {
+  id                String   @id @default(uuid()) @db.Uuid
+  jobId             String?  @map("job_id") @db.Uuid
+  candidateUsername String   @unique @map("candidate_username") @db.VarChar(64)
+  prefix            String?  @db.VarChar(32)
+  suffix            String?  @db.VarChar(32)
+  length            Int
+  credentialId      String?  @unique @map("credential_id") @db.Uuid
+  validationStatus  String   @default("VALID") @map("validation_status") @db.VarChar(32)
+  validationErrors  String?  @map("validation_errors") @db.Text
+  registrationState String   @default("GENERATED_CANDIDATE") @map("registration_state") @db.VarChar(32)
+  accountId         String?  @unique @map("account_id") @db.Uuid
+  attemptCount      Int      @default(0) @map("attempt_count")
+  lastError         String?  @map("last_error") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  job                AccountGenerationJob? @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  credential         CredentialMetadata?   @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  account            Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  registrationEvents RegistrationEvent[]
+
+  @@index([jobId, registrationState])
+  @@index([validationStatus])
+  @@index([createdAt])
+  @@map("generated_account_data")
+}
+
+model RegistrationEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  candidateId    String   @map("candidate_id") @db.Uuid
+  accountId      String?  @map("account_id") @db.Uuid
+  jobId          String?  @map("job_id") @db.Uuid
+  eventType      String   @map("event_type") @db.VarChar(64)
+  statusBefore   String?  @map("status_before") @db.VarChar(32)
+  statusAfter    String   @map("status_after") @db.VarChar(32)
+  robloxUserId   String?  @map("roblox_user_id") @db.VarChar(64)
+  robloxUsername String?  @map("roblox_username") @db.VarChar(64)
+  notes          String?  @db.Text
+  performedById  String?  @map("performed_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  candidate   GeneratedAccountData  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  account     Account?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  job         AccountGenerationJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  performedBy User?                 @relation(fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([candidateId, createdAt])
+  @@index([jobId, eventType])
+  @@index([accountId])
+  @@map("registration_events")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  action      String   @db.VarChar(64)
+  entityType  String   @map("entity_type") @db.VarChar(64)
+  entityId    String?  @map("entity_id") @db.VarChar(64)
+  detailsJson String   @default("{}") @map("details_json") @db.Text
+  ipAddress   String?  @map("ip_address") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([action, entityType])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
