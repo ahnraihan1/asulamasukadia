@@ -48,6 +48,15 @@ export function createApp() {
   }
 
   app.use('/api/v1', apiV1Router);
+  app.use('/api', (req, res) => {
+    res.status(404).json({
+      success: false,
+      error: {
+        code: 'API_ROUTE_NOT_FOUND',
+        message: `Endpoint API tidak ditemukan (${req.method} ${req.originalUrl}). Pastikan server backend sudah di-restart ke versi terbaru.`,
+      },
+    });
+  });
 
   // Serve built React frontend in production/single-port mode
   const clientDistPath = path.resolve(process.cwd(), 'dist/client');

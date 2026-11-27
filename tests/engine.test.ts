@@ -1718,6 +1718,15 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         .get('/api/v1/accounts/ids')
         .set('Authorization', `Bearer ${adminToken}`);
       expect(afterDeleteAllIds.body.data.ids).toEqual([]);
+
+      // Unknown API route returns JSON 404 (never HTML <!DOCTYPE>)
+      const missingApi = await request(app)
+        .post('/api/v1/accounts/non-existent-endpoint')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(missingApi.status).toBe(404);
+      expect(missingApi.headers['content-type']).toMatch(/application\/json/);
+      expect(missingApi.body.success).toBe(false);
+      expect(missingApi.body.error.code).toBe('API_ROUTE_NOT_FOUND');
     });
   });
 });

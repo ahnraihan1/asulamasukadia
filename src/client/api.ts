@@ -260,9 +260,22 @@ class ApiClient {
       headers,
     });
 
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.error?.message || `HTTP Error ${res.status}`);
+    const rawText = await res.text();
+    let json: any = null;
+    try {
+      json = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      const snippet = rawText.trim().slice(0, 40).toLowerCase();
+      if (snippet.startsWith('<!doctype') || snippet.startsWith('<html')) {
+        throw new Error(
+          `Endpoint API mengembalikan halaman HTML (HTTP ${res.status}). Kemungkinan server backend masih menjalankan versi lama—silakan restart server RAGE.`
+        );
+      }
+      throw new Error(`Respons server bukan JSON valid (HTTP ${res.status}).`);
+    }
+
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error?.message || `HTTP Error ${res.status}`);
     }
 
     return {
