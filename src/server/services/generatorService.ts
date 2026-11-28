@@ -673,6 +673,47 @@ export class GeneratorService {
     };
   }
 
+  /**
+   * Prunes all candidate records in FAILED state (without a registered account)
+   * and cleans up their unreferenced vault credential metadata in one atomic transaction.
+   */
+  public static pruneFailedCandidates(performedById?: string | null): { deletedCount: number } {
+    let deletedCount = 0;
+
+    db.transaction(() => {
+      db.raw
+        .prepare(
+          `DELETE FROM credential_metadata
+           WHERE id IN (
+             SELECT credential_id FROM generated_account_data
+             WHERE registration_state = 'FAILED' AND account_id IS NULL AND credential_id IS NOT NULL
+           )
+           AND id NOT IN (
+             SELECT credential_id FROM accounts WHERE credential_id IS NOT NULL
+           )`
+        )
+        .run();
+
+      const res = db.raw
+        .prepare(
+          `DELETE FROM generated_account_data
+           WHERE registration_state = 'FAILED' AND account_id IS NULL`
+        )
+        .run();
+      deletedCount = Number(res.changes ?? 0);
+
+      db.logActivity({
+        userId: performedById ?? null,
+        action: 'PRUNE_FAILED_CANDIDATES',
+        entityType: 'GENERATED_ACCOUNT_DATA',
+        entityId: null,
+        details: { deletedCount },
+      });
+    });
+
+    return { deletedCount };
+  }
+
   private static mapRowToDTO(
     row: GeneratedAccountDataRecord & { fingerprint_sha256?: string | null }
   ): GeneratedCandidateDTO {

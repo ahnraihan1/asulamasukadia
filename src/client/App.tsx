@@ -667,6 +667,30 @@ export function App() {
     }
   };
 
+  const handlePauseBatchWorkers = async () => {
+    try {
+      const res = await api.request<BatchRunState>('/registration/batch-pause', {
+        method: 'POST',
+      });
+      setBatchState(res.data);
+      showToast('success', 'Batch dijeda (Paused). Klik Resume untuk melanjutkan antrean.');
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal menjeda batch');
+    }
+  };
+
+  const handleResumeBatchWorkers = async () => {
+    try {
+      const res = await api.request<BatchRunState>('/registration/batch-resume', {
+        method: 'POST',
+      });
+      setBatchState(res.data);
+      showToast('success', 'Batch dilanjutkan kembali (Resumed)!');
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal melanjutkan batch');
+    }
+  };
+
   const handleStopBatchWorkers = async () => {
     try {
       const res = await api.request<BatchRunState>('/registration/batch-stop', {
@@ -705,6 +729,26 @@ export function App() {
       clearInterval(timer);
     };
   }, [user]);
+
+  const handlePruneFailedCandidates = async () => {
+    try {
+      const res = await api.request<{ deletedCount: number }>(
+        '/generator/candidates/prune-failed',
+        { method: 'POST' }
+      );
+      showToast(
+        'success',
+        `Berhasil membersihkan ${res.data.deletedCount} kandidat berstatus FAILED.`
+      );
+      await loadCandidates(1);
+      if (selectedJob) {
+        const j = await api.request<RegistrationJob>(`/generator/jobs/${selectedJob.id}`);
+        setSelectedJob(j.data);
+      }
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal membersihkan kandidat FAILED');
+    }
+  };
 
   const handleRegenerateCandidate = async (id: string) => {
     try {
@@ -1227,6 +1271,8 @@ export function App() {
           genLoading={genLoading}
           batchState={batchState}
           onStartBatchWorkers={handleStartBatchWorkers}
+          onPauseBatchWorkers={() => void handlePauseBatchWorkers()}
+          onResumeBatchWorkers={() => void handleResumeBatchWorkers()}
           onStopBatchWorkers={() => void handleStopBatchWorkers()}
           onGenerateCandidatesOnly={() => void handleGenerateCandidatesOnly()}
           onExportAllFormatted={() => void handleExportAllFormatted()}
@@ -1237,6 +1283,7 @@ export function App() {
           candidateStateFilter={candidateStateFilter}
           setCandidateStateFilter={setCandidateStateFilter}
           onLoadCandidates={(p) => void loadCandidates(p)}
+          onPruneFailedCandidates={() => void handlePruneFailedCandidates()}
           onRegenerateCandidate={(id) => void handleRegenerateCandidate(id)}
           onStartAssistedBrowser={(id) => void handleStartAssistedBrowser(id)}
           onOpenSupervisedWorkflow={(id) => void openSupervisedWorkflow(id)}

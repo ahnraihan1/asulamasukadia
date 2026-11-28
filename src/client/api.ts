@@ -221,6 +221,9 @@ export interface BatchRunState {
   batchId: string | null;
   jobId: string | null;
   running: boolean;
+  paused?: boolean;
+  pausedAt?: string | null;
+  accumulatedPauseMs?: number;
   totalTarget: number;
   completedCount: number;
   failedCount: number;

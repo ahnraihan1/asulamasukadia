@@ -194,6 +194,9 @@ export interface BatchRunState {
   batchId: string | null;
   jobId: string | null;
   running: boolean;
+  paused?: boolean;
+  pausedAt?: string | null;
+  accumulatedPauseMs?: number;
   totalTarget: number;
   completedCount: number;
   failedCount: number;
@@ -421,6 +424,9 @@ export class BrowserAssistService {
     batchId: null,
     jobId: null,
     running: false,
+    paused: false,
+    pausedAt: null,
+    accumulatedPauseMs: 0,
     totalTarget: 0,
     completedCount: 0,
     failedCount: 0,
@@ -435,6 +441,8 @@ export class BrowserAssistService {
     proxyTotalBlockedRequests: 0,
   };
   private static stopRequested = false;
+  private static pauseRequested = false;
+  private static pauseStartedAtMs: number | null = null;
 
   private static syncLiveProxyStats(): void {
     let totalBytes = 0;
@@ -1397,10 +1405,16 @@ export class BrowserAssistService {
       };
     });
 
+    this.pauseRequested = false;
+    this.pauseStartedAtMs = null;
+
     this.batchState = {
       batchId: job.id,
       jobId: job.id,
       running: true,
+      paused: false,
+      pausedAt: null,
+      accumulatedPauseMs: 0,
       totalTarget: quantity,
       completedCount: 0,
       failedCount: 0,
@@ -1458,6 +1472,16 @@ export class BrowserAssistService {
 
       let exhaustedStaticProxy = false;
       while (!this.stopRequested && candidateQueue.length > 0) {
+        while (this.pauseRequested && !this.stopRequested) {
+          workerSlot.state = 'IDLE';
+          workerSlot.currentUsername = null;
+          workerSlot.deadlineAt = null;
+          workerSlot.remainingSeconds = null;
+          workerSlot.message = 'Dijeda (Paused) — menunggu operator klik Resume...';
+          await new Promise((r) => setTimeout(r, 300));
+        }
+        if (this.stopRequested) break;
+
         const nextCandidate = candidateQueue.shift();
         if (!nextCandidate) break;
 
@@ -1625,6 +1649,10 @@ export class BrowserAssistService {
       if (this.batchState.activeWorkerCount === 0) {
         this.syncLiveProxyStats();
         this.batchState.running = false;
+        this.batchState.paused = false;
+        this.batchState.pausedAt = null;
+        this.pauseRequested = false;
+        this.pauseStartedAtMs = null;
         const leftoverBridges = Array.from(this.persistentManualBridges.values());
         this.persistentManualBridges.clear();
         for (const b of leftoverBridges) {
@@ -1639,9 +1667,53 @@ export class BrowserAssistService {
     return this.batchState;
   }
 
+  public static pauseBatchWorkers(): BatchRunState {
+    if (!this.batchState.running || this.batchState.paused) {
+      return this.batchState;
+    }
+    this.pauseRequested = true;
+    this.pauseStartedAtMs = Date.now();
+    const nowIso = new Date(this.pauseStartedAtMs).toISOString();
+    this.batchState.paused = true;
+    this.batchState.pausedAt = nowIso;
+    this.batchState.updatedAt = nowIso;
+    for (const w of this.batchState.workers) {
+      if (w.state === 'IDLE') {
+        w.message = 'Dijeda (Paused) — menunggu operator klik Resume...';
+      }
+    }
+    return this.batchState;
+  }
+
+  public static resumeBatchWorkers(): BatchRunState {
+    if (!this.batchState.running || !this.batchState.paused) {
+      return this.batchState;
+    }
+    if (this.pauseStartedAtMs !== null) {
+      this.batchState.accumulatedPauseMs =
+        (this.batchState.accumulatedPauseMs ?? 0) +
+        Math.max(0, Date.now() - this.pauseStartedAtMs);
+    }
+    this.pauseRequested = false;
+    this.pauseStartedAtMs = null;
+    this.batchState.paused = false;
+    this.batchState.pausedAt = null;
+    this.batchState.updatedAt = new Date().toISOString();
+    for (const w of this.batchState.workers) {
+      if (w.state === 'IDLE') {
+        w.message = 'Melanjutkan antrean worker...';
+      }
+    }
+    return this.batchState;
+  }
+
   public static async stopBatchWorkers(): Promise<BatchRunState> {
     this.stopRequested = true;
+    this.pauseRequested = false;
+    this.pauseStartedAtMs = null;
     this.batchState.running = false;
+    this.batchState.paused = false;
+    this.batchState.pausedAt = null;
     for (const w of this.batchState.workers) {
       w.deadlineAt = null;
       w.remainingSeconds = null;

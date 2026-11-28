@@ -348,6 +348,19 @@ apiV1Router.get(
 );
 
 apiV1Router.post(
+  '/generator/candidates/prune-failed',
+  requireAuth,
+  requireRole('ADMIN', 'OPERATOR'),
+  asyncHandler((req, res) => {
+    const result = GeneratorService.pruneFailedCandidates(req.user?.id ?? null);
+    res.json({
+      success: true,
+      data: result,
+    });
+  })
+);
+
+apiV1Router.post(
   '/generator/candidates/:id/regenerate',
   requireAuth,
   requireRole('ADMIN', 'OPERATOR'),
@@ -747,6 +760,32 @@ apiV1Router.post(
     res.json({
       success: true,
       data: result,
+    });
+  })
+);
+
+apiV1Router.post(
+  '/registration/batch-pause',
+  requireAuth,
+  requireRole('ADMIN', 'OPERATOR'),
+  asyncHandler((_req, res) => {
+    const state = BrowserAssistService.pauseBatchWorkers();
+    res.json({
+      success: true,
+      data: state,
+    });
+  })
+);
+
+apiV1Router.post(
+  '/registration/batch-resume',
+  requireAuth,
+  requireRole('ADMIN', 'OPERATOR'),
+  asyncHandler((_req, res) => {
+    const state = BrowserAssistService.resumeBatchWorkers();
+    res.json({
+      success: true,
+      data: state,
     });
   })
 );

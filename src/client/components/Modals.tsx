@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Copy,
@@ -9,13 +9,19 @@ import {
   ShieldCheck,
   AlertTriangle,
   Database,
+  Download,
 } from 'lucide-react';
 import {
   AccountItem,
   AssistedSessionStatus,
   SupervisedChecklistPackage,
 } from '../api.js';
-import { COMPACT_INPUT_CLS } from './types.js';
+import {
+  COMPACT_INPUT_CLS,
+  ExportFormatPreset,
+  downloadExportFile,
+  formatCredentialLines,
+} from './types.js';
 
 interface ModalsProps {
   supervisedPkg: SupervisedChecklistPackage | null;
@@ -107,6 +113,13 @@ export function Modals({
   onCloseExportModal,
   onNotify,
 }: ModalsProps) {
+  const [exportPreset, setExportPreset] = useState<ExportFormatPreset>('USER_PASS_COOKIE');
+  const [customExportTemplate, setCustomExportTemplate] = useState('{user}|{pass}|{cookie}');
+  const formattedExport =
+    exportModalText !== null
+      ? formatCredentialLines(exportModalText, exportPreset, customExportTemplate)
+      : { formattedText: '', parsedRows: [] };
+
   useEffect(() => {
     const anyOpen =
       Boolean(supervisedPkg) ||
@@ -641,7 +654,7 @@ export function Modals({
                 </div>
                 <div>
                   <div className="font-mono text-[10px] text-emerald-400">
-                    FORMAT: USERNAME:PASSWORD:COOKIE
+                    EXPORT CREDENTIALS &bull; {formattedExport.parsedRows.length} AKUN
                   </div>
                   <h3 className="text-sm font-semibold text-zinc-100">
                     Registered Account Credentials Export
@@ -659,10 +672,56 @@ export function Modals({
               </button>
             </div>
 
+            {/* Format Preset Selector */}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-[11px] text-zinc-400">PILIH FORMAT OUTPUT:</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(
+                    [
+                      { id: 'USER_PASS_COOKIE', label: 'user:pass:cookie' },
+                      { id: 'USER_PASS', label: 'user:pass' },
+                      { id: 'COOKIE_ONLY', label: 'cookie saja' },
+                      { id: 'USER_ONLY', label: 'username saja' },
+                      { id: 'CUSTOM', label: 'Custom Template' },
+                    ] as Array<{ id: ExportFormatPreset; label: string }>
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setExportPreset(opt.id)}
+                      className={`rounded-lg border px-2.5 py-1 font-mono text-[11px] transition cursor-pointer ${
+                        exportPreset === opt.id
+                          ? 'border-emerald-500/50 bg-emerald-500/15 font-semibold text-emerald-300'
+                          : 'border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {exportPreset === 'CUSTOM' && (
+                <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 py-2">
+                  <span className="font-mono text-[11px] text-zinc-400 shrink-0">
+                    Template (gunakan {'{user}'}, {'{pass}'}, {'{cookie}'}):
+                  </span>
+                  <input
+                    type="text"
+                    value={customExportTemplate}
+                    onChange={(e) => setCustomExportTemplate(e.target.value)}
+                    placeholder="{user}|{pass}|{cookie}"
+                    className={COMPACT_INPUT_CLS + ' font-mono'}
+                  />
+                </div>
+              )}
+            </div>
+
             <textarea
               readOnly
               rows={9}
-              value={exportModalText}
+              value={formattedExport.formattedText}
               className="w-full rounded-xl border border-zinc-800 bg-zinc-950 p-3.5 font-mono text-xs text-emerald-300 focus:outline-none"
             />
 
@@ -670,17 +729,39 @@ export function Modals({
               <span className="font-mono text-[11px] text-zinc-500">
                 Juga otomatis tersimpan di: ./data/registered_accounts.txt
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(exportModalText);
-                  onNotify('success', 'Copied username:password:cookie to clipboard!');
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 font-mono text-xs font-semibold text-zinc-950 hover:bg-emerald-400 cursor-pointer"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                COPY ALL TO CLIPBOARD
-              </button>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(['txt', 'csv', 'json'] as const).map((ext) => (
+                  <button
+                    key={ext}
+                    type="button"
+                    disabled={formattedExport.parsedRows.length === 0}
+                    onClick={() => {
+                      const count = downloadExportFile(
+                        exportModalText,
+                        ext,
+                        exportPreset,
+                        customExportTemplate
+                      );
+                      onNotify('success', `Berhasil mengunduh ${count} akun ke file .${ext.toUpperCase()}!`);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs font-medium text-zinc-200 hover:border-cyan-500/40 hover:bg-zinc-800 disabled:opacity-40 cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5 text-cyan-400" />
+                    .{ext.toUpperCase()}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(formattedExport.formattedText);
+                    onNotify('success', 'Copied formatted credentials to clipboard!');
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 font-mono text-xs font-semibold text-zinc-950 hover:bg-emerald-400 cursor-pointer"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  COPY ALL TO CLIPBOARD
+                </button>
+              </div>
             </div>
           </div>
         </div>

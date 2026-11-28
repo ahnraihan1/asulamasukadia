@@ -35,6 +35,7 @@ import {
   ROBLOX_SIGNUP_AUTOFILL_BROWSER_FN,
   buildManualUserscriptSource,
 } from '../src/server/services/robloxFormFiller.js';
+import { formatCredentialLines, parseCredentialLine } from '../src/client/components/types.js';
 import { AuthService } from '../src/server/middleware/auth.js';
 import fs from 'node:fs';
 import net from 'node:net';
@@ -1830,6 +1831,61 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         password: 'NewOperator@Pass2026',
       });
       expect(reloginRes.status).toBe(200);
+
+      // Prune FAILED candidates removes only FAILED rows & unreferenced vault credentials
+      const genForPrune = GeneratorService.generateBatch({
+        quantity: 3,
+        prefix: 'prn',
+        length: 12,
+      });
+      const failedCandId = genForPrune.candidates[0].id;
+      const keptCandId = genForPrune.candidates[1].id;
+      db.raw
+        .prepare("UPDATE generated_account_data SET registration_state = 'FAILED' WHERE id = ?")
+        .run(failedCandId);
+
+      const pruneRes = await request(app)
+        .post('/api/v1/generator/candidates/prune-failed')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(pruneRes.status).toBe(200);
+      expect(pruneRes.body.data.deletedCount).toBe(1);
+      expect(GeneratorService.getCandidateById(failedCandId)).toBeNull();
+      expect(GeneratorService.getCandidateById(keptCandId)).not.toBeNull();
+
+      // Batch Pause & Resume endpoints return valid BatchRunState
+      const pauseRes = await request(app)
+        .post('/api/v1/registration/batch-pause')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(pauseRes.status).toBe(200);
+      expect(pauseRes.body.success).toBe(true);
+
+      const resumeRes = await request(app)
+        .post('/api/v1/registration/batch-resume')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(resumeRes.status).toBe(200);
+      expect(resumeRes.body.success).toBe(true);
+
+      // Export custom formatters preserve colons inside .ROBLOSECURITY cookie
+      const sampleRaw = [
+        'rbxAlpha1:Pass#111:_|WARNING:-DO-NOT-SHARE-THIS.--cookieAAA',
+        'rbxBeta2:Pass#222:_|WARNING:-DO-NOT-SHARE-THIS.--cookieBBB',
+      ].join('\n');
+      const parsed0 = parseCredentialLine(sampleRaw.split('\n')[0])!;
+      expect(parsed0.username).toBe('rbxAlpha1');
+      expect(parsed0.password).toBe('Pass#111');
+      expect(parsed0.cookie).toBe('_|WARNING:-DO-NOT-SHARE-THIS.--cookieAAA');
+
+      expect(formatCredentialLines(sampleRaw, 'USER_PASS').formattedText).toBe(
+        'rbxAlpha1:Pass#111\nrbxBeta2:Pass#222'
+      );
+      expect(formatCredentialLines(sampleRaw, 'COOKIE_ONLY').formattedText).toBe(
+        '_|WARNING:-DO-NOT-SHARE-THIS.--cookieAAA\n_|WARNING:-DO-NOT-SHARE-THIS.--cookieBBB'
+      );
+      expect(
+        formatCredentialLines(sampleRaw, 'CUSTOM', '{user}|{pass}|{cookie}').formattedText
+      ).toBe(
+        'rbxAlpha1|Pass#111|_|WARNING:-DO-NOT-SHARE-THIS.--cookieAAA\nrbxBeta2|Pass#222|_|WARNING:-DO-NOT-SHARE-THIS.--cookieBBB'
+      );
     });
   });
 });

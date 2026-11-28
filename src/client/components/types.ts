@@ -75,13 +75,16 @@ export function useBatchStopwatch(batchState: BatchRunState | null): BatchStopwa
 
   const startMs = Date.parse(batchState.startedAt);
   const endMs = batchState.running
-    ? Math.max(startMs, nowMs)
+    ? batchState.paused && batchState.pausedAt
+      ? Math.max(startMs, Date.parse(batchState.pausedAt))
+      : Math.max(startMs, nowMs)
     : batchState.updatedAt
       ? Math.max(startMs, Date.parse(batchState.updatedAt))
       : startMs;
 
+  const pausedOffsetMs = Math.max(0, Number(batchState.accumulatedPauseMs) || 0);
   const elapsedSeconds = Number.isFinite(startMs)
-    ? Math.max(0, Math.floor((endMs - startMs) / 1000))
+    ? Math.max(0, Math.floor(Math.max(0, endMs - startMs - pausedOffsetMs) / 1000))
     : 0;
   const formattedElapsed = formatStopwatchDuration(elapsedSeconds);
 
@@ -170,3 +173,147 @@ export const SELECT_CLS =
 
 export const COMPACT_INPUT_CLS =
   'w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 transition focus:border-emerald-500/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
+
+export type ExportFormatPreset =
+  | 'USER_PASS_COOKIE'
+  | 'USER_PASS'
+  | 'COOKIE_ONLY'
+  | 'USER_ONLY'
+  | 'CUSTOM';
+
+export interface ParsedCredentialLine {
+  username: string;
+  password: string;
+  cookie: string;
+  raw: string;
+}
+
+export function parseCredentialLine(line: string): ParsedCredentialLine | null {
+  const trimmed = line.trim();
+  if (
+    !trimmed ||
+    trimmed === 'Belum ada akun terdaftar.' ||
+    trimmed === 'Tidak ada akun terpilih.'
+  ) {
+    return null;
+  }
+  const idx1 = trimmed.indexOf(':');
+  if (idx1 === -1) {
+    return { username: trimmed, password: '', cookie: '', raw: trimmed };
+  }
+  const idx2 = trimmed.indexOf(':', idx1 + 1);
+  if (idx2 === -1) {
+    return {
+      username: trimmed.slice(0, idx1),
+      password: trimmed.slice(idx1 + 1),
+      cookie: '',
+      raw: trimmed,
+    };
+  }
+  return {
+    username: trimmed.slice(0, idx1),
+    password: trimmed.slice(idx1 + 1, idx2),
+    cookie: trimmed.slice(idx2 + 1),
+    raw: trimmed,
+  };
+}
+
+export function formatCredentialLines(
+  rawText: string,
+  preset: ExportFormatPreset = 'USER_PASS_COOKIE',
+  customTemplate = '{user}:{pass}:{cookie}'
+): { formattedText: string; parsedRows: ParsedCredentialLine[] } {
+  const parsedRows = rawText
+    .split(/\r?\n/)
+    .map((l) => parseCredentialLine(l))
+    .filter((r): r is ParsedCredentialLine => r !== null);
+
+  if (parsedRows.length === 0) {
+    return { formattedText: rawText, parsedRows: [] };
+  }
+
+  const tpl = customTemplate.trim() || '{user}:{pass}:{cookie}';
+  const formattedLines = parsedRows.map((r) => {
+    switch (preset) {
+      case 'USER_PASS':
+        return `${r.username}:${r.password}`;
+      case 'COOKIE_ONLY':
+        return r.cookie || r.raw;
+      case 'USER_ONLY':
+        return r.username;
+      case 'CUSTOM':
+        return tpl
+          .replace(/\{(user|username)\}/gi, r.username)
+          .replace(/\{(pass|password)\}/gi, r.password)
+          .replace(/\{cookie\}/gi, r.cookie);
+      case 'USER_PASS_COOKIE':
+      default:
+        return `${r.username}:${r.password}:${r.cookie}`;
+    }
+  });
+
+  return {
+    formattedText: formattedLines.join('\n'),
+    parsedRows,
+  };
+}
+
+function escapeCsvCell(val: string): string {
+  return `"${String(val ?? '').replace(/"/g, '""')}"`;
+}
+
+export function downloadExportFile(
+  rawText: string,
+  ext: 'txt' | 'csv' | 'json',
+  preset: ExportFormatPreset = 'USER_PASS_COOKIE',
+  customTemplate = '{user}:{pass}:{cookie}'
+): number {
+  const { formattedText, parsedRows } = formatCredentialLines(rawText, preset, customTemplate);
+  if (parsedRows.length === 0) return 0;
+
+  let content = formattedText;
+  let mimeType = 'text/plain;charset=utf-8';
+
+  if (ext === 'csv') {
+    mimeType = 'text/csv;charset=utf-8';
+    const formattedLines = formattedText.split('\n');
+    const csvRows = [
+      '"username","password","cookie","formatted"',
+      ...parsedRows.map((r, i) =>
+        [
+          escapeCsvCell(r.username),
+          escapeCsvCell(r.password),
+          escapeCsvCell(r.cookie),
+          escapeCsvCell(formattedLines[i] ?? r.raw),
+        ].join(',')
+      ),
+    ];
+    content = csvRows.join('\r\n');
+  } else if (ext === 'json') {
+    mimeType = 'application/json;charset=utf-8';
+    const formattedLines = formattedText.split('\n');
+    content = JSON.stringify(
+      parsedRows.map((r, i) => ({
+        username: r.username,
+        password: r.password,
+        cookie: r.cookie,
+        formatted: formattedLines[i] ?? r.raw,
+      })),
+      null,
+      2
+    );
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const filename = `rage_accounts_${parsedRows.length}_${stamp}.${ext}`;
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return parsedRows.length;
+}
