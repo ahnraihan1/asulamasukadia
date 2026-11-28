@@ -46,12 +46,6 @@ const NAV_ITEMS: Array<{
     icon: Cpu,
   },
   {
-    id: 'jobs',
-    label: 'Registration Jobs',
-    subtitle: 'Antrean persiapan kandidat, pause/resume, & status completion',
-    icon: Layers,
-  },
-  {
     id: 'accounts',
     label: 'Accounts Vault',
     subtitle: 'Repositori akun terdaftar & terenkripsi AES-256-GCM Vault',

@@ -966,17 +966,6 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
                   </button>
                 </>
               )}
-
-              <button
-                type="button"
-                disabled={genLoading}
-                onClick={onGenerateCandidatesOnly}
-                title="Generate data kandidat ke database tanpa membuka browser"
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-950/80 px-4 py-2.5 font-mono text-xs font-medium text-zinc-200 hover:border-zinc-600 hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                <span>GENERATE CANDIDATES</span>
-              </button>
             </div>
           </div>
         </form>
@@ -1136,7 +1125,17 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
               </div>
 
               <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3">
-                <div className="font-mono text-[10px] uppercase text-zinc-500">Gagal / Diganti</div>
+                <div className="flex items-center justify-between gap-1 font-mono text-[10px] uppercase text-zinc-500">
+                  <span>Gagal / Diganti</span>
+                  <button
+                    type="button"
+                    onClick={onPruneFailedCandidates}
+                    title="Bersihkan kandidat gagal (FAILED) dari database"
+                    className="rounded border border-rose-500/30 bg-rose-950/30 px-1.5 py-0.5 font-mono text-[9px] text-rose-300 hover:bg-rose-900/40 cursor-pointer"
+                  >
+                    BERSIHKAN
+                  </button>
+                </div>
                 <div className="mt-1 font-mono text-lg font-bold tabular-nums text-amber-300">
                   {batchState?.failedCount ?? 0}
                   <span className="text-xs font-normal text-zinc-500">
@@ -1338,174 +1337,6 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
           </section>
         </div>
       </div>
-
-      {/* BOTTOM FULL-WIDTH: Generated Candidate Records */}
-      <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/80 p-4 sm:p-5">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-100">
-              Generated Candidate Records ({candidatesMeta.total})
-            </h3>
-            <p className="text-xs text-zinc-400">
-              Kandidat pra-registrasi terpisah dari akun terdaftar hingga konfirmasi manusia selesai.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
-              <input
-                type="text"
-                placeholder="Cari candidate username..."
-                value={candidateSearch}
-                onChange={(e) => setCandidateSearch(e.target.value)}
-                className="rounded-lg border border-zinc-800 bg-zinc-950/90 pl-8 pr-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-500/70 focus:outline-none"
-              />
-            </div>
-            <select
-              value={candidateStateFilter}
-              onChange={(e) => setCandidateStateFilter(e.target.value)}
-              className="rounded-lg border border-zinc-800 bg-zinc-950/90 px-3 py-1.5 text-xs text-zinc-100 focus:border-emerald-500/70 focus:outline-none"
-            >
-              <option value="">All States</option>
-              <option value="GENERATED_CANDIDATE">GENERATED_CANDIDATE</option>
-              <option value="VERIFICATION_REQUIRED">VERIFICATION_REQUIRED</option>
-              <option value="REGISTERED">REGISTERED</option>
-              <option value="FAILED">FAILED</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => onLoadCandidates(1)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-xs text-zinc-200 hover:bg-zinc-800 cursor-pointer"
-            >
-              <Filter className="h-3.5 w-3.5 text-cyan-400" />
-              FILTER
-            </button>
-            <button
-              type="button"
-              onClick={onPruneFailedCandidates}
-              title="Hapus semua kandidat berstatus FAILED dari database agar tetap ringan"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/35 bg-rose-950/30 px-3 py-1.5 font-mono text-xs text-rose-200 hover:bg-rose-900/40 cursor-pointer"
-            >
-              <Trash2 className="h-3.5 w-3.5 text-rose-400" />
-              BERSIHKAN GAGAL (FAILED)
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-950/60 font-mono text-[11px] uppercase text-zinc-400">
-                <th className="p-3.5">Candidate Username</th>
-                <th className="p-3.5">Len</th>
-                <th className="p-3.5">Validation</th>
-                <th className="p-3.5">Vault Fingerprint</th>
-                <th className="p-3.5">Workflow State</th>
-                <th className="p-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/60 text-xs">
-              {candidates.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center font-mono text-zinc-500">
-                    Belum ada kandidat. Klik <strong>GENERATE CANDIDATES</strong> atau mulai batch worker di atas.
-                  </td>
-                </tr>
-              ) : (
-                candidates.map((c) => (
-                  <tr key={c.id} className="transition hover:bg-zinc-800/30">
-                    <td className="p-3.5 font-mono font-medium text-zinc-100">
-                      {c.candidateUsername}
-                    </td>
-                    <td className="p-3.5 font-mono tabular-nums text-zinc-400">{c.length}</td>
-                    <td className="p-3.5">
-                      <span
-                        className={`inline-flex rounded-md border px-2 py-0.5 font-mono text-[10px] ${getStatusBadgeClasses(
-                          c.validationStatus
-                        )}`}
-                      >
-                        {c.validationStatus}
-                      </span>
-                    </td>
-                    <td className="p-3.5 font-mono text-zinc-500">
-                      {c.credentialFingerprint
-                        ? `SHA256:${c.credentialFingerprint.slice(0, 14)}...`
-                        : 'NONE'}
-                    </td>
-                    <td className="p-3.5 font-mono">
-                      <span
-                        className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] ${getStatusBadgeClasses(
-                          c.registrationState
-                        )}`}
-                      >
-                        {c.registrationState}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-right">
-                      {c.registrationState !== 'REGISTERED' ? (
-                        <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onRegenerateCandidate(c.id)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[11px] text-zinc-300 hover:bg-zinc-800 cursor-pointer"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            REGENERATE
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onStartAssistedBrowser(c.id)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20 cursor-pointer"
-                          >
-                            <Play className="h-3 w-3" />
-                            AUTO-OPEN &amp; AUTOFILL
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onOpenSupervisedWorkflow(c.id)}
-                            className="rounded-lg bg-zinc-100 px-2.5 py-1 font-mono text-[11px] font-semibold text-zinc-950 hover:bg-zinc-200 cursor-pointer"
-                          >
-                            SUPERVISE &amp; REGISTER
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 font-mono text-[11px] text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          CONFIRMED
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-zinc-800/80 px-4 py-3 font-mono text-xs text-zinc-400">
-          <span className="tabular-nums">
-            Page {candidatesMeta.page} of {candidatesMeta.totalPages} ({candidatesMeta.total} total)
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={candidatesMeta.page <= 1}
-              onClick={() => onLoadCandidates(candidatesMeta.page - 1)}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1 disabled:opacity-40 hover:bg-zinc-800 cursor-pointer"
-            >
-              PREV
-            </button>
-            <button
-              type="button"
-              disabled={candidatesMeta.page >= candidatesMeta.totalPages}
-              onClick={() => onLoadCandidates(candidatesMeta.page + 1)}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1 disabled:opacity-40 hover:bg-zinc-800 cursor-pointer"
-            >
-              NEXT
-            </button>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

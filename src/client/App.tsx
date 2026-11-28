@@ -411,7 +411,6 @@ export function App() {
   useEffect(() => {
     if (!user) return;
     if (activeTab === 'generator') {
-      void loadCandidates(1);
       void loadFirefoxProfileInfo();
     }
     if (activeTab === 'jobs') void loadJobs(1);
@@ -421,7 +420,6 @@ export function App() {
   }, [
     user,
     activeTab,
-    loadCandidates,
     loadJobs,
     loadAccounts,
     loadLogsAndHistory,
