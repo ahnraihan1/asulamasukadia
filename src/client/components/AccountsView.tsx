@@ -20,15 +20,23 @@ import { getStatusBadgeClasses } from './types.js';
 function formatAccountCreatedAt(iso: string | null | undefined): {
   datePart: string;
   timePart: string;
+  ageLabel: string;
+  ageDays: number;
   fullText: string;
 } {
   if (!iso) {
-    return { datePart: '—', timePart: '', fullText: '—' };
+    return { datePart: '—', timePart: '', ageLabel: '—', ageDays: 0, fullText: '—' };
   }
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) {
-    return { datePart: iso, timePart: '', fullText: iso };
+    return { datePart: iso, timePart: '', ageLabel: '—', ageDays: 0, fullText: iso };
   }
+  const now = new Date();
+  const startOfCreatedDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const diffDays = Math.max(0, Math.round((startOfToday - startOfCreatedDay) / 86_400_000));
+  const ageLabel = `${diffDays} Days`;
+
   const datePart = d.toLocaleDateString('id-ID', {
     day: '2-digit',
     month: 'short',
@@ -42,7 +50,9 @@ function formatAccountCreatedAt(iso: string | null | undefined): {
   return {
     datePart,
     timePart,
-    fullText: `${datePart} ${timePart}`,
+    ageLabel,
+    ageDays: diffDays,
+    fullText: `${datePart} ${timePart} (${ageLabel})`,
   };
 }
 
@@ -432,10 +442,10 @@ export function AccountsView({
                       setAccSortBy('created_at');
                     }
                   }}
-                  title="Urutkan berdasarkan tanggal akun dibuat"
+                  title="Urutkan berdasarkan tanggal akun dibuat & umur akun"
                   className="inline-flex items-center gap-1 uppercase hover:text-zinc-200 cursor-pointer"
                 >
-                  <span>Tanggal Dibuat</span>
+                  <span>Tanggal Dibuat / Umur</span>
                   <ArrowUpDown className="h-3 w-3 text-cyan-400" />
                 </button>
               </th>
@@ -534,11 +544,22 @@ export function AccountsView({
                     </td>
                     <td
                       className="p-3.5 font-mono tabular-nums whitespace-nowrap"
-                      title={acc.createdAt || createdInfo.fullText}
+                      title={createdInfo.fullText}
                     >
-                      <div className="inline-flex items-center gap-1.5 text-zinc-200">
+                      <div className="flex items-center gap-1.5 text-zinc-200">
                         <CalendarClock className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
                         <span>{createdInfo.datePart}</span>
+                        <span
+                          className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
+                            createdInfo.ageDays >= 7
+                              ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
+                              : createdInfo.ageDays >= 1
+                                ? 'border-cyan-500/35 bg-cyan-500/10 text-cyan-300'
+                                : 'border-zinc-700 bg-zinc-800/90 text-zinc-300'
+                          }`}
+                        >
+                          {createdInfo.ageLabel}
+                        </span>
                       </div>
                       {createdInfo.timePart && (
                         <div className="pl-5 text-[10px] text-zinc-500">{createdInfo.timePart}</div>
