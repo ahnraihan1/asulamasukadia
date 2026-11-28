@@ -113,9 +113,13 @@ apiV1Router.post(
       ipAddress: req.ip ?? null,
     });
 
+    const isHttpsRequest =
+      req.secure ||
+      req.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase() === 'https';
+
     res.cookie(SESSION_COOKIE_NAME, session.sessionId, {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
+      secure: env.NODE_ENV === 'production' && isHttpsRequest,
       sameSite: 'strict',
       maxAge: 24 * 60 * 60 * 1000,
       path: '/',
@@ -152,10 +156,63 @@ apiV1Router.post(
       entityId: req.user?.id ?? null,
       ipAddress: req.ip ?? null,
     });
-    res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
+    const isHttpsRequest =
+      req.secure ||
+      req.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase() === 'https';
+    res.clearCookie(SESSION_COOKIE_NAME, {
+      path: '/',
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production' && isHttpsRequest,
+      sameSite: 'strict',
+    });
     res.json({
       success: true,
       data: { message: 'Logged out successfully' },
+    });
+  })
+);
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required').max(128),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters').max(128),
+});
+
+apiV1Router.post(
+  '/auth/change-password',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const parsed = changePasswordSchema.parse(req.body);
+    const userRow = db.raw
+      .prepare('SELECT id, password_hash FROM users WHERE id = ? AND deleted_at IS NULL')
+      .get(req.user!.id) as { id: string; password_hash: string } | undefined;
+
+    if (!userRow) {
+      throw new ApiError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    const ok = await AuthService.verifyPassword(parsed.currentPassword, userRow.password_hash);
+    if (!ok) {
+      throw new ApiError(401, 'INVALID_CREDENTIALS', 'Password lama tidak cocok');
+    }
+
+    const nextHash = await AuthService.hashPassword(parsed.newPassword);
+    const now = new Date().toISOString();
+    db.raw
+      .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+      .run(nextHash, now, userRow.id);
+
+    db.logActivity({
+      userId: req.user!.id,
+      action: 'AUTH_CHANGE_PASSWORD',
+      entityType: 'USER',
+      entityId: req.user!.id,
+      details: { username: req.user!.username },
+      ipAddress: req.ip ?? null,
+    });
+
+    res.json({
+      success: true,
+      data: { message: 'Password berhasil diperbarui' },
     });
   })
 );
@@ -727,6 +784,14 @@ const resolveLocalApiBaseUrl = (req: Request): string => {
 };
 
 const isLoopbackRequest = (req: Request): boolean => {
+  if (
+    req.headers['cf-connecting-ip'] ||
+    req.headers['x-forwarded-for'] ||
+    req.headers['x-real-ip'] ||
+    req.headers['forwarded']
+  ) {
+    return false;
+  }
   const remote = req.socket.remoteAddress || req.ip || '';
   return remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
 };

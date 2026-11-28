@@ -35,10 +35,15 @@ import { Modals } from './components/Modals.js';
 
 export function App() {
   const [savedCfg] = useState<Record<string, any>>(() => loadSavedUiCfg());
+  const isLocalAccess =
+    typeof window !== 'undefined' &&
+    /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(window.location.hostname);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [loginUsername, setLoginUsername] = useState('admin');
-  const [loginPassword, setLoginPassword] = useState('Admin@RobloxEngine2026!');
+  const [loginUsername, setLoginUsername] = useState(isLocalAccess ? 'admin' : '');
+  const [loginPassword, setLoginPassword] = useState(
+    isLocalAccess ? 'Admin@RobloxEngine2026!' : ''
+  );
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('generator');
@@ -1107,6 +1112,23 @@ export function App() {
     }
   };
 
+  const handleChangePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<boolean> => {
+    try {
+      await api.request('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      showToast('success', 'Password akun berhasil diperbarui!');
+      return true;
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Gagal mengubah password');
+      return false;
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-zinc-950 text-zinc-300 flex flex-col items-center justify-center gap-3 font-mono text-xs rage-grid-bg">
@@ -1126,6 +1148,7 @@ export function App() {
         loginPassword={loginPassword}
         setLoginPassword={setLoginPassword}
         loginError={loginError}
+        isLocalAccess={isLocalAccess}
         onSubmit={handleLogin}
       />
     );
@@ -1288,6 +1311,7 @@ export function App() {
           setSettingsData={setSettingsData}
           healthData={healthData}
           onSaveSettings={handleSaveSettings}
+          onChangePassword={handleChangePassword}
         />
       )}
 

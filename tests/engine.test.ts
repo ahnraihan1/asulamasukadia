@@ -1727,6 +1727,36 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
       expect(missingApi.headers['content-type']).toMatch(/application\/json/);
       expect(missingApi.body.success).toBe(false);
       expect(missingApi.body.error.code).toBe('API_ROUTE_NOT_FOUND');
+
+      // Forwarded requests from Cloudflare Tunnel / external proxy are blocked from loopback autofill endpoints
+      const forwardedAutofill = await request(app)
+        .get('/api/v1/registration/manual-autofill-json')
+        .set('CF-Connecting-IP', '203.0.113.5')
+        .set('X-Forwarded-For', '203.0.113.5');
+      expect(forwardedAutofill.status).toBe(403);
+      expect(forwardedAutofill.body.error.code).toBe('FORBIDDEN_NON_LOOPBACK');
+
+      // User password rotation verifies current password and persists new Argon2id hash
+      const badPassChange = await request(app)
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({ currentPassword: 'WrongPassword!', newPassword: 'NewOperator@Pass2026' });
+      expect(badPassChange.status).toBe(401);
+
+      const goodPassChange = await request(app)
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .send({
+          currentPassword: 'Operator@RobloxEngine2026!',
+          newPassword: 'NewOperator@Pass2026',
+        });
+      expect(goodPassChange.status).toBe(200);
+
+      const reloginRes = await request(app).post('/api/v1/auth/login').send({
+        username: 'operator',
+        password: 'NewOperator@Pass2026',
+      });
+      expect(reloginRes.status).toBe(200);
     });
   });
 });

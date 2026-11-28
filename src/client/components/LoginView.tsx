@@ -8,6 +8,7 @@ interface LoginViewProps {
   loginPassword: string;
   setLoginPassword: (val: string) => void;
   loginError: string | null;
+  isLocalAccess: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -20,6 +21,7 @@ export function LoginView({
   loginPassword,
   setLoginPassword,
   loginError,
+  isLocalAccess,
   onSubmit,
 }: LoginViewProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -118,34 +120,40 @@ export function LoginView({
           </button>
         </form>
 
-        <div className="mt-6 rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3.5 text-[11px] font-mono text-zinc-400">
-          <div className="mb-2 flex items-center justify-between text-zinc-500">
-            <span>SEEDED CREDENTIALS</span>
-            <span className="text-[10px] text-zinc-600">Klik untuk isi cepat</span>
+        {isLocalAccess ? (
+          <div className="mt-6 rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3.5 text-[11px] font-mono text-zinc-400">
+            <div className="mb-2 flex items-center justify-between text-zinc-500">
+              <span>SEEDED CREDENTIALS (LOCALHOST)</span>
+              <span className="text-[10px] text-zinc-600">Klik untuk isi cepat</span>
+            </div>
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => applyPreset('admin', 'Admin@RobloxEngine2026!')}
+                className="flex w-full items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/50 px-2.5 py-1.5 text-left transition hover:border-emerald-500/40 hover:text-zinc-200 cursor-pointer"
+              >
+                <span>admin / Admin@RobloxEngine2026!</span>
+                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
+                  ADMIN
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('operator', 'Operator@RobloxEngine2026!')}
+                className="flex w-full items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/50 px-2.5 py-1.5 text-left transition hover:border-cyan-500/40 hover:text-zinc-200 cursor-pointer"
+              >
+                <span>operator / Operator@RobloxEngine2026!</span>
+                <span className="rounded bg-cyan-500/15 px-1.5 py-0.5 text-[10px] text-cyan-300">
+                  OPERATOR
+                </span>
+              </button>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <button
-              type="button"
-              onClick={() => applyPreset('admin', 'Admin@RobloxEngine2026!')}
-              className="flex w-full items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/50 px-2.5 py-1.5 text-left transition hover:border-emerald-500/40 hover:text-zinc-200 cursor-pointer"
-            >
-              <span>admin / Admin@RobloxEngine2026!</span>
-              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">
-                ADMIN
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset('operator', 'Operator@RobloxEngine2026!')}
-              className="flex w-full items-center justify-between rounded-lg border border-zinc-800/70 bg-zinc-900/50 px-2.5 py-1.5 text-left transition hover:border-cyan-500/40 hover:text-zinc-200 cursor-pointer"
-            >
-              <span>operator / Operator@RobloxEngine2026!</span>
-              <span className="rounded bg-cyan-500/15 px-1.5 py-0.5 text-[10px] text-cyan-300">
-                OPERATOR
-              </span>
-            </button>
+        ) : (
+          <div className="mt-6 rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-3 text-[11px] font-mono text-cyan-200/90 leading-relaxed">
+            Akses jarak jauh aktif. Masukkan username &amp; password operator Anda secara manual untuk melindungi akses publik.
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

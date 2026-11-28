@@ -1,5 +1,5 @@
-import React from 'react';
-import { Settings, ShieldCheck, HardDrive, Save } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings, ShieldCheck, HardDrive, Save, KeyRound } from 'lucide-react';
 import { INPUT_CLS } from './types.js';
 
 interface SettingsViewProps {
@@ -7,17 +7,48 @@ interface SettingsViewProps {
   setSettingsData: (next: Record<string, any>) => void;
   healthData: Record<string, any> | null;
   onSaveSettings: (e: React.FormEvent) => void;
+  onChangePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }
 
 /**
- * Engine defaults, platform compliance controls, and vault storage telemetry.
+ * Engine defaults, password rotation, platform compliance controls, and vault telemetry.
  */
 export function SettingsView({
   settingsData,
   setSettingsData,
   healthData,
   onSaveSettings,
+  onChangePassword,
 }: SettingsViewProps) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPass, setChangingPass] = useState(false);
+  const [passError, setPassError] = useState<string | null>(null);
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPassError(null);
+    if (newPassword.length < 8) {
+      setPassError('Password baru minimal 8 karakter.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPassError('Konfirmasi password baru tidak sama.');
+      return;
+    }
+    setChangingPass(true);
+    try {
+      const ok = await onChangePassword(currentPassword, newPassword);
+      if (ok) {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } finally {
+      setChangingPass(false);
+    }
+  };
   if (!settingsData) {
     return (
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-center font-mono text-xs text-zinc-400">
@@ -28,7 +59,8 @@ export function SettingsView({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 p-6">
+      <div className="space-y-6">
+        <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 p-6">
         <div className="flex items-center gap-3 border-b border-zinc-800/80 pb-4 mb-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
             <Settings className="h-4.5 w-4.5" />
@@ -128,6 +160,92 @@ export function SettingsView({
           </button>
         </form>
       </section>
+
+        <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 p-6">
+          <div className="flex items-center gap-3 border-b border-zinc-800/80 pb-4 mb-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
+              <KeyRound className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Ubah Password Akun Dashboard
+              </h2>
+              <p className="text-xs text-zinc-400">
+                Disarankan ubah password bawaan sebelum membuka akses internet ke HP.
+              </p>
+            </div>
+          </div>
+
+          {passError && (
+            <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-950/40 px-3 py-2 font-mono text-xs text-rose-200">
+              {passError}
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-3.5">
+            <div>
+              <label
+                htmlFor="current-password"
+                className="mb-1 block font-mono text-[11px] uppercase text-zinc-400"
+              >
+                Password Saat Ini
+              </label>
+              <input
+                id="current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className={INPUT_CLS}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label
+                  htmlFor="new-password"
+                  className="mb-1 block font-mono text-[11px] uppercase text-zinc-400"
+                >
+                  Password Baru (Min 8)
+                </label>
+                <input
+                  id="new-password"
+                  type="password"
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={INPUT_CLS}
+                  required
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="confirm-new-password"
+                  className="mb-1 block font-mono text-[11px] uppercase text-zinc-400"
+                >
+                  Konfirmasi Password
+                </label>
+                <input
+                  id="confirm-new-password"
+                  type="password"
+                  minLength={8}
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  className={INPUT_CLS}
+                  required
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={changingPass}
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/15 px-4 py-2.5 font-mono text-xs font-semibold text-amber-200 hover:bg-amber-500/25 disabled:opacity-50 cursor-pointer"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              {changingPass ? 'MENYIMPAN...' : 'SIMPAN PASSWORD BARU'}
+            </button>
+          </form>
+        </section>
+      </div>
 
       <div className="space-y-6">
         <section className="rounded-2xl border border-zinc-800/90 bg-zinc-900/55 p-6">
