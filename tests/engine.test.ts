@@ -1162,6 +1162,24 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
       expect(tplAlloc.isDynamicSession).toBe(true);
       expect(tplAlloc.proxy.username).toMatch(/^user-rg2a4[0-9a-f]{4}$/);
 
+      // Legion Proxy embedded _session-<id> auto-rotation per account while keeping country & sesstime intact
+      const legion = BrowserAssistService.parseProxyString(
+        'uorder54042_country-TH_session-zflnht74p0_sesstime-10:GVV4QohtYUctGZGK@budget.legionproxy.io:1337'
+      )!;
+      const leg1 = BrowserAssistService.allocateUniqueStickyProxy(legion, 1, 1);
+      const leg2 = BrowserAssistService.allocateUniqueStickyProxy(legion, 2, 1);
+      expect(leg1.isDynamicSession).toBe(true);
+      expect(leg2.isDynamicSession).toBe(true);
+      expect(leg1.proxy.server).toBe('http://budget.legionproxy.io:1337');
+      expect(leg1.proxy.password).toBe('GVV4QohtYUctGZGK');
+      expect(leg1.proxy.username).toMatch(
+        /^uorder54042_country-TH_session-rg1a1[0-9a-f]{4}_sesstime-10$/
+      );
+      expect(leg2.proxy.username).toMatch(
+        /^uorder54042_country-TH_session-rg1a2[0-9a-f]{4}_sesstime-10$/
+      );
+      expect(leg1.proxy.username).not.toBe(leg2.proxy.username);
+
       const staticProxy = BrowserAssistService.parseProxyString('198.51.100.10:8080')!;
       const staticAlloc = BrowserAssistService.allocateUniqueStickyProxy(staticProxy, 1, 1);
       expect(staticAlloc.isDynamicSession).toBe(false);
@@ -1226,6 +1244,56 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         // Request paralel kedua harus memakai token sticky ter-pin yang persis sama dengan pemenang pertama
         expect(seenUsernames[6]).toBe(seenUsernames[5]);
         expect(new Set(seenUsernames.slice(0, 6)).size).toBe(6);
+      } finally {
+        bridge.close();
+        mockUpstream.close();
+      }
+    });
+
+    it('auto-rotates embedded _session- sticky proxy (LegionProxy pattern) on 503 before pinning IP', async () => {
+      const seenUsernames: string[] = [];
+      const mockUpstream = net.createServer((sock) => {
+        sock.once('data', (chunk) => {
+          const raw = chunk.toString('latin1');
+          const authMatch = raw.match(/Proxy-Authorization:\s*Basic\s+([A-Za-z0-9+/=]+)/i);
+          const decoded = authMatch ? Buffer.from(authMatch[1], 'base64').toString('utf8') : '';
+          seenUsernames.push(decoded.split(':')[0] || '');
+
+          if (seenUsernames.length <= 2) {
+            sock.end('HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n');
+          } else {
+            sock.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+          }
+        });
+      });
+      await new Promise<void>((resolve) => mockUpstream.listen(0, '127.0.0.1', resolve));
+      const upPort = (mockUpstream.address() as net.AddressInfo).port;
+
+      const bridge = await LocalProxyBridge.start({
+        server: `http://127.0.0.1:${upPort}`,
+        username: 'uorder54042_country-TH_session-zflnht74p0_sesstime-10',
+        password: 'demoPass',
+      });
+
+      try {
+        const resp = await new Promise<string>((resolve, reject) => {
+          const c = net.connect(bridge.port, '127.0.0.1');
+          c.once('connect', () => {
+            c.write('CONNECT www.roblox.com:443 HTTP/1.1\r\nHost: www.roblox.com:443\r\n\r\n');
+          });
+          c.once('data', (d) => {
+            c.destroy();
+            resolve(d.toString('latin1'));
+          });
+          c.once('error', reject);
+        });
+
+        expect(resp).toContain('200 Connection Established');
+        expect(seenUsernames.length).toBe(3);
+        expect(seenUsernames[0]).toBe('uorder54042_country-TH_session-zflnht74p0_sesstime-10');
+        expect(seenUsernames[1]).toMatch(/^uorder54042_country-TH_session-[a-z0-9]+_sesstime-10$/);
+        expect(seenUsernames[2]).toMatch(/^uorder54042_country-TH_session-[a-z0-9]+_sesstime-10$/);
+        expect(new Set(seenUsernames).size).toBe(3);
       } finally {
         bridge.close();
         mockUpstream.close();

@@ -195,6 +195,29 @@ const DATAIMPULSE_FAILOVER_COUNTRIES = [
   'in',
 ] as const;
 
+const EMBEDDED_STICKY_SESSION_REGEX = /([_-](?:session|sessid|sess|sid)[_-])([A-Za-z0-9]+)/i;
+
+/**
+ * Mendeteksi parameter sesi sticky tertanam pada username proxy
+ * (mis. Legion Proxy `_session-zflnht74p0`, `-session-abc123`, `-sid-xyz`).
+ */
+export function hasEmbeddedStickySession(username?: string): boolean {
+  return Boolean(username && EMBEDDED_STICKY_SESSION_REGEX.test(username));
+}
+
+/**
+ * Mengganti token sesi sticky tertanam dengan token baru sambil mempertahankan parameter negara/TTL lain.
+ */
+export function replaceEmbeddedStickySession(username: string, nextToken: string): string {
+  return username.replace(EMBEDDED_STICKY_SESSION_REGEX, `$1${nextToken}`);
+}
+
+export function extractEmbeddedStickyToken(username?: string): string | null {
+  if (!username) return null;
+  const m = username.match(EMBEDDED_STICKY_SESSION_REGEX);
+  return m?.[2] ?? null;
+}
+
 /**
  * Mendeteksi apakah host/username proxy merupakan gateway residensial DataImpulse
  * (`*.dataimpulse.com`, IP gateway `74.81.81.81`, parameter negara `__cr.*`, atau `;sessid.*`).
@@ -284,8 +307,19 @@ export class LocalProxyBridge {
       return false;
     }
     const user = this.username || '';
-    if (!isDataImpulseProxy(this.upstreamHost, user)) {
+    const isDi = isDataImpulseProxy(this.upstreamHost, user);
+    const hasEmbedded = !isDi && hasEmbeddedStickySession(user);
+    if (!isDi && !hasEmbedded) {
       return false;
+    }
+
+    if (hasEmbedded) {
+      const oldToken = extractEmbeddedStickyToken(user) || 'st';
+      const basePrefix = oldToken.replace(/r\d+[0-9a-f]{4,}$/i, '').slice(0, 10) || 'st';
+      const freshToken = allocateFreshStickyToken(`${basePrefix}r${attempt + 1}`);
+      const nextUser = replaceEmbeddedStickySession(user, freshToken);
+      this.setAuth(nextUser, this.password);
+      return true;
     }
 
     const hostLower = this.upstreamHost.trim().toLowerCase();
@@ -493,7 +527,9 @@ export class LocalProxyBridge {
     const baseFilteredHeaders = rawHeaders.filter(
       (l) => !/^(proxy-authorization|proxy-connection|connection):/i.test(l)
     );
-    const canRotateSticky = isDataImpulseProxy(this.upstreamHost, this.username);
+    const canRotateSticky =
+      isDataImpulseProxy(this.upstreamHost, this.username) ||
+      hasEmbeddedStickySession(this.username);
     const maxAttempts = canRotateSticky ? 6 : 3;
 
     try {

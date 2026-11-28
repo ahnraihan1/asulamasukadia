@@ -36,10 +36,12 @@ import {
 } from './firefoxManualCapture.js';
 import {
   allocateFreshStickyToken,
+  hasEmbeddedStickySession,
   isBlockedByDataSaver,
   isDataImpulseProxy,
   LocalProxyBridge,
   ProxyBridgeOptions,
+  replaceEmbeddedStickySession,
 } from './localProxyBridge.js';
 import {
   applyWin32WindowRect,
@@ -1090,6 +1092,19 @@ export class BrowserAssistService {
           username: rep(baseProxy.username),
           password: rep(baseProxy.password),
           display: `${baseProxy.display} [${token}]`,
+        },
+        isDynamicSession: true,
+      };
+    }
+
+    if (hasEmbeddedStickySession(baseProxy.username)) {
+      const nextUsername = replaceEmbeddedStickySession(baseProxy.username!, token);
+      return {
+        proxy: {
+          server: baseProxy.server,
+          username: nextUsername,
+          password: baseProxy.password,
+          display: `${baseProxy.display} [${token}] (sticky)`,
         },
         isDynamicSession: true,
       };
