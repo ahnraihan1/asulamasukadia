@@ -980,6 +980,18 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {stopwatch.accountsPerMinute !== null && (
+                  <div
+                    title="Kecepatan rata-rata akun terdaftar per menit dan per jam"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/35 bg-cyan-500/10 px-3 py-1.5 font-mono text-xs font-semibold tabular-nums text-cyan-300"
+                  >
+                    <Zap className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>
+                      {stopwatch.accountsPerMinute}/mnt &bull; {stopwatch.accountsPerHour}/jam
+                    </span>
+                  </div>
+                )}
+
                 <div
                   title="Stopwatch durasi generate account"
                   className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 font-mono text-xs font-semibold tabular-nums ${
@@ -1005,8 +1017,8 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
               </div>
             </div>
 
-            {/* 5 KPI Summary Cards (termasuk Stopwatch & ETA) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {/* 6 KPI Summary Cards (termasuk Stopwatch & Laju Per Menit / Per Jam) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3">
                 <div className="font-mono text-[10px] uppercase text-zinc-500">Terdaftar</div>
                 <div className="mt-1 font-mono text-lg font-bold tabular-nums text-emerald-400">
@@ -1033,14 +1045,30 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
                 <div className="mt-1 font-mono text-lg font-bold tabular-nums text-zinc-100">
                   {stopwatch.formattedElapsed}
                 </div>
+                <div className="mt-1 truncate font-mono text-[10px] tabular-nums text-zinc-400">
+                  {stopwatch.etaFormatted
+                    ? `ETA ${stopwatch.etaFormatted}`
+                    : stopwatch.avgSecondsPerAccount !== null
+                      ? `Rata-rata ${stopwatch.avgSecondsPerAccount}d/akun`
+                      : batchState?.running
+                        ? 'Menghitung waktu...'
+                        : 'Siap mulai'}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3">
+                <div className="font-mono text-[10px] uppercase text-zinc-500">
+                  Kecepatan (Mnt / Jam)
+                </div>
+                <div className="mt-1 font-mono text-lg font-bold tabular-nums text-emerald-300">
+                  {stopwatch.accountsPerMinute ?? 0}
+                  <span className="text-xs font-normal text-zinc-400">/mnt</span>
+                </div>
                 <div className="mt-1 truncate font-mono text-[10px] tabular-nums text-cyan-300">
+                  ~{stopwatch.accountsPerHour ?? 0} akun/jam
                   {stopwatch.avgSecondsPerAccount !== null
-                    ? `${stopwatch.avgSecondsPerAccount}d/akun${
-                        stopwatch.etaFormatted ? ` • ETA ${stopwatch.etaFormatted}` : ''
-                      }`
-                    : batchState?.running
-                      ? 'Menghitung laju...'
-                      : 'Siap mulai'}
+                    ? ` (${stopwatch.avgSecondsPerAccount}d)`
+                    : ''}
                 </div>
               </div>
 

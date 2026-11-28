@@ -329,6 +329,9 @@ export function SidebarLayout({
                   <span className="tabular-nums">
                     {batchState.activeWorkerCount} Worker &bull; {batchState.completedCount}/
                     {batchState.totalTarget} &bull; {stopwatch.formattedElapsed}
+                    {stopwatch.accountsPerMinute !== null
+                      ? ` (${stopwatch.accountsPerMinute}/mnt • ${stopwatch.accountsPerHour}/jam)`
+                      : ''}
                   </span>
                 </button>
               )}

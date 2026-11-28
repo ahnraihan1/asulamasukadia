@@ -45,6 +45,8 @@ export interface BatchStopwatchMetrics {
   elapsedSeconds: number;
   formattedElapsed: string;
   avgSecondsPerAccount: number | null;
+  accountsPerMinute: number | null;
+  accountsPerHour: number | null;
   etaFormatted: string | null;
 }
 
@@ -65,6 +67,8 @@ export function useBatchStopwatch(batchState: BatchRunState | null): BatchStopwa
       elapsedSeconds: 0,
       formattedElapsed: '00:00:00',
       avgSecondsPerAccount: null,
+      accountsPerMinute: null,
+      accountsPerHour: null,
       etaFormatted: null,
     };
   }
@@ -87,6 +91,16 @@ export function useBatchStopwatch(batchState: BatchRunState | null): BatchStopwa
       ? Math.round((elapsedSeconds / completed) * 10) / 10
       : null;
 
+  const accountsPerMinute =
+    completed > 0 && elapsedSeconds > 0
+      ? Math.round(((completed / elapsedSeconds) * 60) * 10) / 10
+      : null;
+
+  const accountsPerHour =
+    completed > 0 && elapsedSeconds > 0
+      ? Math.round((completed / elapsedSeconds) * 3600)
+      : null;
+
   const remainingAccounts = Math.max(0, (batchState.totalTarget ?? 0) - completed);
   const etaFormatted =
     batchState.running && avgSecondsPerAccount !== null && remainingAccounts > 0
@@ -97,6 +111,8 @@ export function useBatchStopwatch(batchState: BatchRunState | null): BatchStopwa
     elapsedSeconds,
     formattedElapsed,
     avgSecondsPerAccount,
+    accountsPerMinute,
+    accountsPerHour,
     etaFormatted,
   };
 }
