@@ -963,17 +963,30 @@ export class BrowserAssistService {
   }
 
   /**
-   * Mengekstrak URL/string proxy dari baris mentah, termasuk format perintah `curl -x "..."`.
+   * Mengekstrak URL/string proxy dari baris mentah, termasuk format perintah:
+   * - `curl -x "http://user:pass@host:port" https://...`
+   * - `curl -U "user:pass" -x "host:port" "https://..."` (format Decodo / Smartproxy)
    */
   public static extractProxyFromLine(raw: string): string {
     const trimmed = raw.trim();
     if (!trimmed) return '';
 
-    const curlMatch = trimmed.match(
-      /^curl\b.*?(?:-x|--proxy)\s+(?:["']([^"']+)["']|(\S+))/i
-    );
-    if (curlMatch) {
-      return (curlMatch[1] || curlMatch[2] || '').trim();
+    if (/^curl\b/i.test(trimmed)) {
+      const proxyMatch = trimmed.match(/(?:-x|--proxy)\s+(?:["']([^"']+)["']|(\S+))/i);
+      const userMatch = trimmed.match(/(?:-U|--proxy-user)\s+(?:["']([^"']+)["']|(\S+))/i);
+      if (proxyMatch) {
+        let proxyRaw = (proxyMatch[1] || proxyMatch[2] || '').trim();
+        const proxyUser = userMatch ? (userMatch[1] || userMatch[2] || '').trim() : '';
+        if (proxyUser && !proxyRaw.includes('@')) {
+          const protoMatch = proxyRaw.match(/^([a-z0-9]+:\/\/)(.+)$/i);
+          if (protoMatch) {
+            proxyRaw = `${protoMatch[1]}${proxyUser}@${protoMatch[2]}`;
+          } else {
+            proxyRaw = `http://${proxyUser}@${proxyRaw}`;
+          }
+        }
+        return proxyRaw;
+      }
     }
 
     return trimmed.replace(/^["']|["']$/g, '').trim();
@@ -1081,6 +1094,35 @@ export class BrowserAssistService {
             username: nextUser,
             password: baseProxy.password,
             display: `${u.hostname}:823 [${token}] (sticky)`,
+          },
+          isDynamicSession: true,
+        };
+      }
+
+      // Dukungan Decodo / Smartproxy (*.decodo.com, *.smartproxy.com):
+      // Jika menggunakan port sticky (mis. 10001..19999, 20001..29999, 30001..39999, 40001..49999)
+      // dan belum memakai parameter _session-, otomatis putar nomor port sticky per akun (9.999 port/blok)
+      const hostLower = u.hostname.trim().toLowerCase();
+      if (
+        (hostLower.endsWith('.decodo.com') || hostLower.endsWith('.smartproxy.com')) &&
+        !hasEmbeddedStickySession(baseUser)
+      ) {
+        const currentPort = Number(u.port || 30001);
+        const blockBase =
+          currentPort >= 10000 && currentPort < 60000
+            ? Math.floor(currentPort / 10000) * 10000
+            : 30000;
+        const startOffset =
+          currentPort > blockBase && currentPort < blockBase + 10000
+            ? currentPort - (blockBase + 1)
+            : 0;
+        const nextPort = blockBase + 1 + ((startOffset + Math.max(0, attemptNumber - 1)) % 9999);
+        return {
+          proxy: {
+            server: `${u.protocol}//${u.hostname}:${nextPort}`,
+            username: baseProxy.username,
+            password: baseProxy.password,
+            display: `${u.hostname}:${nextPort} (decodo-sticky)`,
           },
           isDynamicSession: true,
         };

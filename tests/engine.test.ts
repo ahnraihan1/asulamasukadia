@@ -1098,6 +1098,24 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
         display: 'gw.example.net:10000 (auth)',
       });
 
+      const decodoParsed = BrowserAssistService.parseProxyString(
+        'curl -U "sptdqlem6a:=Vl8nLjbGfl8r5Un2y" -x "th.decodo.com:30001" "https://ip.decodo.com/json"'
+      );
+      expect(decodoParsed).toEqual({
+        server: 'http://th.decodo.com:30001',
+        username: 'sptdqlem6a',
+        password: '=Vl8nLjbGfl8r5Un2y',
+        display: 'th.decodo.com:30001 (auth)',
+      });
+
+      const decodoSticky1 = BrowserAssistService.allocateUniqueStickyProxy(decodoParsed!, 1, 1);
+      const decodoSticky2 = BrowserAssistService.allocateUniqueStickyProxy(decodoParsed!, 2, 1);
+      expect(decodoSticky1.isDynamicSession).toBe(true);
+      expect(decodoSticky1.proxy.server).toBe('http://th.decodo.com:30001');
+      expect(decodoSticky2.isDynamicSession).toBe(true);
+      expect(decodoSticky2.proxy.server).toBe('http://th.decodo.com:30002');
+      expect(decodoSticky2.proxy.password).toBe('=Vl8nLjbGfl8r5Un2y');
+
       const expanded = BrowserAssistService.expandProxyLines([
         'curl -x "http://demoUser:demoPass@gw.example.net:10000-10002" https://api.ipify.org/',
       ]);

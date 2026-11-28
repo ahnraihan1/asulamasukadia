@@ -567,9 +567,15 @@ export function App() {
       return;
     }
     const curlM = firstLine.match(/^curl\b.*?(?:-x|--proxy)\s+(?:["']([^"']+)["']|(\S+))/i);
-    const clean = (curlM ? curlM[1] || curlM[2] || '' : firstLine)
+    const curlU = firstLine.match(/^curl\b.*?(?:-U|--proxy-user)\s+(?:["']([^"']+)["']|(\S+))/i);
+    let clean = (curlM ? curlM[1] || curlM[2] || '' : firstLine)
       .replace(/^["']|["']$/g, '')
       .trim();
+    const userAuth = curlU ? (curlU[1] || curlU[2] || '').trim() : '';
+    if (userAuth && !clean.includes('@')) {
+      const protoM = clean.match(/^([a-z0-9]+:\/\/)(.+)$/i);
+      clean = protoM ? `${protoM[1]}${userAuth}@${protoM[2]}` : `http://${userAuth}@${clean}`;
+    }
     const m = clean.match(/^(.*?:)(\d{2,5})$/);
     if (!m) {
       setProxyText(clean);

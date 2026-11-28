@@ -340,10 +340,25 @@ export class LocalProxyBridge {
       return false;
     }
     const user = this.username || '';
+    const hostLower = this.upstreamHost.trim().toLowerCase();
     const isDi = isDataImpulseProxy(this.upstreamHost, user);
     const hasEmbedded = !isDi && hasEmbeddedStickySession(user);
-    if (!isDi && !hasEmbedded) {
+    const isDecodoPortSticky =
+      !isDi &&
+      !hasEmbedded &&
+      (hostLower.endsWith('.decodo.com') || hostLower.endsWith('.smartproxy.com')) &&
+      this.upstreamPort >= 10001 &&
+      this.upstreamPort < 60000;
+
+    if (!isDi && !hasEmbedded && !isDecodoPortSticky) {
       return false;
+    }
+
+    if (isDecodoPortSticky) {
+      const blockBase = Math.floor(this.upstreamPort / 10000) * 10000;
+      const offset = Math.max(0, this.upstreamPort - (blockBase + 1));
+      this.upstreamPort = blockBase + 1 + ((offset + 1 + attempt) % 9999);
+      return true;
     }
 
     if (hasEmbedded) {
@@ -355,7 +370,6 @@ export class LocalProxyBridge {
       return true;
     }
 
-    const hostLower = this.upstreamHost.trim().toLowerCase();
     const isRealDataImpulseHost =
       hostLower.endsWith('.dataimpulse.com') || hostLower === '74.81.81.81';
 
