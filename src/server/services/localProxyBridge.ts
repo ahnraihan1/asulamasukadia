@@ -120,37 +120,6 @@ export const DATA_SAVER_BLOCKED_EXACT = new Set<string>([
   'premiumfeatures.roblox.com',
   'client-telemetry.roblox.com',
   'telemetry.roblox.com',
-  'accountinformation.roblox.com',
-  'accountsettings.roblox.com',
-  'ads.roblox.com',
-  'adconfiguration.roblox.com',
-  'chatmoderation.roblox.com',
-  'engagementpayouts.roblox.com',
-  'gameinternationalization.roblox.com',
-  'gamejoin.roblox.com',
-  'gamepersistence.roblox.com',
-  'itemconfiguration.roblox.com',
-  'localizationtables.roblox.com',
-  'points.roblox.com',
-  'sharelinks.roblox.com',
-  'textfilter.roblox.com',
-  'themes.roblox.com',
-  'thumbnailsresizer.roblox.com',
-  'translationroles.roblox.com',
-  'translations.roblox.com',
-  // Kebocoran background situs pihak ketiga dari profil Firefox utama (Discord, YouTube media)
-  'cdn.discordapp.com',
-  'discord.com',
-  'discordapp.com',
-  'media.discordapp.net',
-  'images-ext-1.discordapp.net',
-  'images-ext-2.discordapp.net',
-  'gateway.discord.gg',
-  'status.discord.com',
-  'latency.discord.media',
-  'googlevideo.com',
-  'i.ytimg.com',
-  'yt3.ggpht.com',
 ]);
 
 export const DATA_SAVER_BLOCKED_SUFFIXES = [
@@ -158,8 +127,6 @@ export const DATA_SAVER_BLOCKED_SUFFIXES = [
   '.ohttp-gateway.prod.webservices.mozgcp.net',
   '.ingest.sentry.io',
   '.ingest.us.sentry.io',
-  '.googlevideo.com',
-  '.discord.media',
 ];
 
 // Catatan keamanan CAPTCHA: JANGAN memblokir fonts.gstatic.com, fonts.googleapis.com, atau images.rbxcdn.com
