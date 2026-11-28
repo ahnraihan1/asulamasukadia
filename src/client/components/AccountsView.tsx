@@ -548,14 +548,14 @@ export function AccountsView({
                     >
                       <div className="flex items-center gap-1.5 text-zinc-200">
                         <CalendarClock className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-                        <span>{createdInfo.datePart}</span>
+                        <span className="font-bold">{createdInfo.datePart}</span>
                         <span
-                          className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
+                          className={`rounded-md border-[1.5px] border-[#0a1f3d] px-1.5 py-0.5 text-[10px] font-black shadow-[1.5px_1.5px_0_#0a1f3d] ${
                             createdInfo.ageDays >= 7
-                              ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-300'
+                              ? 'bg-[#ddf6e5] text-[#0a6b2b]'
                               : createdInfo.ageDays >= 1
-                                ? 'border-cyan-500/35 bg-cyan-500/10 text-cyan-300'
-                                : 'border-zinc-700 bg-zinc-800/90 text-zinc-300'
+                                ? 'bg-[#dcebff] text-[#0a56b4]'
+                                : 'bg-[#fff0c7] text-[#7a4d00]'
                           }`}
                         >
                           {createdInfo.ageLabel}

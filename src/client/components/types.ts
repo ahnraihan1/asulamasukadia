@@ -142,37 +142,37 @@ export function getStatusBadgeClasses(status: string): string {
     case 'VALID':
     case 'WAITING_REGISTRATION':
     case 'ACTIVE':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+      return 'border-2 border-[#0a1f3d] bg-[#ddf6e5] text-[#0a6b2b] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
     case 'PROCESSING':
     case 'OPENING_BROWSER':
     case 'CAPTURED_SAVING':
     case 'LAUNCHING':
-      return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300';
+      return 'border-2 border-[#0a1f3d] bg-[#dcebff] text-[#0a56b4] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
     case 'VERIFICATION_REQUIRED':
     case 'PENDING_CONFIRMATION':
     case 'PENDING':
     case 'PAUSED':
     case 'SAVING':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+      return 'border-2 border-[#0a1f3d] bg-[#fff0c7] text-[#7a4d00] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
     case 'FAILED':
     case 'INVALID':
     case 'ERROR':
     case 'SUSPENDED':
     case 'CANCELED':
-      return 'border-rose-500/30 bg-rose-500/10 text-rose-300';
+      return 'border-2 border-[#0a1f3d] bg-[#ffe0e5] text-[#a8102a] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
     default:
-      return 'border-zinc-700/80 bg-zinc-800/60 text-zinc-300';
+      return 'border-2 border-[#0a1f3d] bg-[#f3f8fe] text-[#2a3f60] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
   }
 }
 
 export const INPUT_CLS =
-  'w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 transition focus:border-emerald-500/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
+  'w-full rounded-xl border-[2.5px] border-[#0a1f3d] bg-[#f3f8fe] px-3 py-2 text-sm font-bold text-[#0a1f3d] placeholder:text-[#52657f] transition focus:border-[#0e72e6] focus:outline-none focus:ring-3 focus:ring-[#7fd0ff]';
 
 export const SELECT_CLS =
-  'w-full rounded-lg border border-zinc-800 bg-zinc-950/90 px-3 py-2 text-sm text-zinc-100 transition focus:border-emerald-500/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
+  'w-full rounded-xl border-[2.5px] border-[#0a1f3d] bg-[#f3f8fe] px-3 py-2 text-sm font-bold text-[#0a1f3d] transition focus:border-[#0e72e6] focus:outline-none focus:ring-3 focus:ring-[#7fd0ff]';
 
 export const COMPACT_INPUT_CLS =
-  'w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-2.5 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 transition focus:border-emerald-500/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/20';
+  'w-full rounded-xl border-[2.5px] border-[#0a1f3d] bg-[#f3f8fe] px-2.5 py-1.5 text-xs font-bold text-[#0a1f3d] placeholder:text-[#52657f] transition focus:border-[#0e72e6] focus:outline-none focus:ring-3 focus:ring-[#7fd0ff]';
 
 export type ExportFormatPreset =
   | 'USER_PASS_COOKIE'

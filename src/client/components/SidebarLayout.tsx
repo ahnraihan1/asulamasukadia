@@ -1,23 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Cpu,
-  Layers,
   Users,
   ScrollText,
   Settings,
   LogOut,
-  Menu,
   X,
-  PanelLeftClose,
-  PanelLeftOpen,
   Download,
   CheckCircle2,
   AlertTriangle,
   Activity,
-  Shield,
+  Zap,
+  Clock,
 } from 'lucide-react';
 import { UserInfo, BatchRunState } from '../api.js';
-import { ActiveTab, ToastMessage, useBatchStopwatch } from './types.js';
+import { ActiveTab, ToastMessage, formatProxyBytes, useBatchStopwatch } from './types.js';
 
 interface SidebarLayoutProps {
   user: UserInfo;
@@ -66,14 +63,17 @@ const NAV_ITEMS: Array<{
 ];
 
 /**
- * Collapsible left sidebar + sticky command topbar shell for RAGE dashboard.
+ * Playful Neo-Brutalist Arcade Layout (inspired by aaxyou.store):
+ * - Sky gradient stage with CSS pixel clouds & checkerboard ground strip
+ * - Floating white capsule pills (.aax-pill) for Brand, Navigation, Live Stats, & Actions
+ * - Hero banner with 3D typography, tilted pixel sticker, & quick-status card
+ * - Dark navy LIVE ticker bar underneath
  */
 export function SidebarLayout({
   user,
   activeTab,
   setActiveTab,
   batchState,
-  jobsTotal,
   accountsTotal,
   toast,
   onDismissToast,
@@ -81,294 +81,311 @@ export function SidebarLayout({
   onLogout,
   children,
 }: SidebarLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const stopwatch = useBatchStopwatch(batchState);
-
   const activeMeta = NAV_ITEMS.find((n) => n.id === activeTab) ?? NAV_ITEMS[0];
 
   const getNavBadge = (id: ActiveTab): string | null => {
     if (id === 'generator' && batchState?.running) {
       return `${batchState.activeWorkerCount} ON`;
     }
-    if (id === 'jobs' && jobsTotal > 0) return String(jobsTotal);
     if (id === 'accounts' && accountsTotal > 0) return String(accountsTotal);
     return null;
   };
 
-  const renderSidebarContent = (collapsed: boolean) => (
-    <div className="flex h-full flex-col justify-between">
-      <div>
-        {/* Brand Section */}
-        <div className="flex h-16 items-center justify-between border-b border-zinc-800/80 px-4">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 text-emerald-300 shadow-inner">
-              <Shield className="h-4.5 w-4.5" />
-            </div>
-            {!collapsed && (
-              <div className="min-w-0">
-                <div className="truncate font-mono text-xs font-bold tracking-wider text-zinc-100">
-                  RAGE ENGINE
-                </div>
-                <div className="truncate text-[10px] font-mono text-emerald-400">
-                  SUPERVISED WORKFLOW
-                </div>
-              </div>
-            )}
-          </div>
+  const batchPercent =
+    batchState && batchState.totalTarget > 0
+      ? Math.min(100, Math.round((batchState.completedCount / batchState.totalTarget) * 100))
+      : 0;
 
-          <button
-            type="button"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={() => setSidebarCollapsed((c) => !c)}
-            className="hidden lg:flex rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-200 cursor-pointer"
-          >
-            {collapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            aria-label="Close navigation menu"
-            onClick={() => setMobileMenuOpen(false)}
-            className="lg:hidden rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Navigation Links */}
-        <nav className="space-y-1 p-3" aria-label="Primary Navigation">
-          {!collapsed && (
-            <div className="px-2.5 pb-1.5 text-[10px] font-mono uppercase tracking-widest text-zinc-500">
-              Workspace
-            </div>
-          )}
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            const badge = getNavBadge(item.id);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                title={collapsed ? item.label : undefined}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setMobileMenuOpen(false);
-                }}
-                className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-medium transition cursor-pointer ${
-                  isActive
-                    ? 'border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 shadow-sm'
-                    : 'border border-transparent text-zinc-400 hover:bg-zinc-900/90 hover:text-zinc-100'
-                }`}
-              >
-                <span className="flex items-center gap-3 min-w-0">
-                  <Icon
-                    className={`h-4 w-4 shrink-0 ${
-                      isActive ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-300'
-                    }`}
-                  />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </span>
-                {!collapsed && badge && (
-                  <span
-                    className={`ml-2 rounded-md px-1.5 py-0.5 font-mono text-[10px] tabular-nums ${
-                      item.id === 'generator' && batchState?.running
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-zinc-800 text-zinc-300'
-                    }`}
-                  >
-                    {badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Bottom Operator Profile Card */}
-      <div className="border-t border-zinc-800/80 p-3 space-y-2.5">
-        {!collapsed && batchState?.batchId && (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('generator');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full rounded-xl border border-zinc-800 bg-zinc-900/70 p-2.5 text-left transition hover:border-zinc-700 cursor-pointer"
-          >
-            <div className="flex items-center justify-between text-[10px] font-mono">
-              <span className="flex items-center gap-1.5 text-zinc-300">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    batchState.running ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'
-                  }`}
-                />
-                {batchState.running ? 'BATCH RUNNING' : 'LAST BATCH'}
-              </span>
-              <span className="tabular-nums text-emerald-400">
-                {batchState.completedCount}/{batchState.totalTarget} &bull;{' '}
-                {stopwatch.formattedElapsed}
-              </span>
-            </div>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
-                style={{
-                  width: `${
-                    batchState.totalTarget > 0
-                      ? Math.min(100, Math.round((batchState.completedCount / batchState.totalTarget) * 100))
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </button>
-        )}
-
-        <div
-          className={`flex items-center ${
-            collapsed ? 'justify-center' : 'justify-between'
-          } rounded-xl border border-zinc-800/80 bg-zinc-900/60 p-2.5`}
-        >
-          {!collapsed && (
-            <div className="min-w-0 pr-2">
-              <div className="truncate text-xs font-semibold text-zinc-100">{user.username}</div>
-              <div className="font-mono text-[10px] text-cyan-400">{user.role}</div>
-            </div>
-          )}
-          <button
-            type="button"
-            title="Logout"
-            aria-label="Logout"
-            onClick={onLogout}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/70 px-2.5 py-1.5 text-[11px] font-mono text-zinc-300 transition hover:border-rose-500/40 hover:bg-rose-950/30 hover:text-rose-200 cursor-pointer"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {!collapsed && <span>LOGOUT</span>}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const latestRegisteredSample =
+    batchState && batchState.registeredLines.length > 0
+      ? batchState.registeredLines[batchState.registeredLines.length - 1]?.split(':')[0] ?? null
+      : null;
 
   return (
-    <div className="relative min-h-screen bg-zinc-950 text-zinc-100 flex">
-      {/* Desktop Sidebar */}
-      <aside
-        className={`hidden lg:block shrink-0 border-r border-zinc-800/80 bg-zinc-950/95 transition-all duration-200 ${
-          sidebarCollapsed ? 'w-[74px]' : 'w-64'
-        }`}
-      >
-        <div className="sticky top-0 h-screen">{renderSidebarContent(sidebarCollapsed)}</div>
-      </aside>
+    <div className="aax-theme min-h-screen flex flex-col">
+      {/* SKY STAGE: Floating Pills Topbar + Compact Hero Banner */}
+      <div className="aax-sky px-4 sm:px-6 pt-4 pb-8">
+        {/* Decorative CSS Pixel Clouds */}
+        <div className="aax-pixel-cloud top-6 left-[8%] hidden md:block" aria-hidden="true" />
+        <div className="aax-pixel-cloud top-14 right-[14%] hidden lg:block" aria-hidden="true" />
+        <div className="aax-pixel-cloud bottom-10 left-[44%] hidden xl:block" aria-hidden="true" />
 
-      {/* Mobile Drawer Overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <aside className="relative z-10 w-72 border-r border-zinc-800 bg-zinc-950 shadow-2xl">
-            {renderSidebarContent(false)}
-          </aside>
-        </div>
-      )}
+        <div className="relative z-10 mx-auto max-w-[1600px] space-y-5">
+          {/* FLOATING PILL TOPBAR */}
+          <header className="flex flex-wrap items-center justify-between gap-2.5">
+            {/* 1. Brand Pill */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('generator')}
+              className="aax-pill inline-flex items-center gap-2.5 px-3.5 py-2 text-left transition hover:-translate-y-0.5 cursor-pointer"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#0a1f3d] bg-[#ffc533] font-black text-sm text-[#0a1f3d] shadow-[2px_2px_0_#0a1f3d]">
+                R
+              </span>
+              <span className="font-black tracking-tight text-base text-[#0a1f3d]">
+                RAGE<span className="text-[#0e72e6]">ENGINE</span>
+              </span>
+            </button>
 
-      {/* Main Column */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Sticky Top Command Bar */}
-        <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur-xl px-4 sm:px-6">
-          <div className="flex h-16 items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                type="button"
-                aria-label="Open navigation menu"
-                onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+            {/* 2. Navigation Links Pill */}
+            <nav
+              aria-label="Primary Navigation"
+              className="aax-pill flex flex-wrap items-center gap-1 p-1.5"
+            >
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                const badge = getNavBadge(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveTab(item.id)}
+                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition cursor-pointer ${
+                      isActive
+                        ? 'border-2 border-[#0a1f3d] bg-[#7fd0ff] text-[#0a1f3d] shadow-[0_2px_0_#0a1f3d]'
+                        : 'border-2 border-transparent text-[#2a3f60] hover:bg-[#eef5fd] hover:text-[#0a1f3d]'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{item.label}</span>
+                    {badge && (
+                      <span
+                        className={`rounded-full border-[1.5px] border-[#0a1f3d] px-1.5 py-0.2 font-mono text-[10px] font-black tabular-nums ${
+                          item.id === 'generator' && batchState?.running
+                            ? 'bg-[#ffc533] text-[#0a1f3d]'
+                            : 'bg-[#dcebff] text-[#0a56b4]'
+                        }`}
+                      >
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* 3. Right Live Stat Pills & Quick Actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                title="Total akun terdaftar di Account Vault"
+                className="aax-pill inline-flex items-center gap-2 px-3 py-1.5 text-xs font-extrabold"
               >
-                <Menu className="h-4 w-4" />
-              </button>
-
-              <div className="min-w-0">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="font-mono text-xs font-semibold tracking-wider text-zinc-100">
-                    RAGE // ACCOUNT GENERATOR ENGINE
-                  </span>
-                  <span className="hidden sm:inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900/90 px-2 py-0.5 font-mono text-[10px] text-zinc-400">
-                    HUMAN-SUPERVISED MODE
-                  </span>
-                </div>
-                <p className="truncate text-xs text-zinc-500 mt-0.5">
-                  <span className="text-zinc-300 font-medium">{activeMeta.label}</span> —{' '}
-                  {activeMeta.subtitle}
-                </p>
+                <span className="h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#0a1f3d] bg-[#17b34d]" />
+                <span className="font-mono font-bold tabular-nums">{accountsTotal}</span>
+                <span className="text-[#2a3f60]">in vault</span>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2.5 shrink-0">
-              {batchState?.running && (
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('generator')}
-                  className="hidden md:inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-mono text-emerald-300 hover:bg-emerald-500/20 cursor-pointer"
-                >
-                  <Activity className="h-3.5 w-3.5 animate-pulse" />
-                  <span className="tabular-nums">
-                    {batchState.activeWorkerCount} Worker &bull; {batchState.completedCount}/
-                    {batchState.totalTarget} &bull; {stopwatch.formattedElapsed}
-                    {stopwatch.accountsPerMinute !== null
-                      ? ` (${stopwatch.accountsPerMinute}/mnt • ${stopwatch.accountsPerHour}/jam)`
-                      : ''}
-                  </span>
-                </button>
-              )}
+              <div
+                title="Progress batch & stopwatch"
+                className="aax-pill inline-flex items-center gap-2 px-3 py-1.5 text-xs font-extrabold"
+              >
+                <span
+                  className={`h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#0a1f3d] ${
+                    batchState?.running ? 'bg-[#ffc533] animate-pulse' : 'bg-[#2b8cff]'
+                  }`}
+                />
+                <span className="font-mono font-bold tabular-nums">
+                  {batchState?.completedCount ?? 0}/{batchState?.totalTarget ?? 0}
+                </span>
+                <span className="text-[#2a3f60]">&bull;</span>
+                <span className="font-mono font-bold tabular-nums text-[#0e72e6]">
+                  {stopwatch.formattedElapsed}
+                </span>
+              </div>
 
               <button
                 type="button"
                 onClick={onExportAll}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-xs font-mono text-zinc-200 transition hover:border-zinc-700 hover:bg-zinc-800 cursor-pointer"
+                className="aax-btn-gold inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black cursor-pointer"
               >
-                <Download className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">EXPORT DATABASE</span>
+                <Download className="h-3.5 w-3.5" />
+                <span>EXPORT DATABASE</span>
               </button>
+
+              <div className="aax-pill inline-flex items-center gap-2 pl-3 pr-1.5 py-1">
+                <span className="text-xs font-black text-[#0a1f3d]">{user.username}</span>
+                <span className="rounded-md border-[1.5px] border-[#0a1f3d] bg-[#fff0c7] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#7a4d00]">
+                  {user.role}
+                </span>
+                <button
+                  type="button"
+                  title="Logout"
+                  aria-label="Logout"
+                  onClick={onLogout}
+                  className="inline-flex items-center gap-1 rounded-full border-2 border-[#0a1f3d] bg-[#ffe0e5] px-2.5 py-1 font-mono text-[10px] font-black text-[#a8102a] hover:bg-[#ffc5d0] cursor-pointer"
+                >
+                  <LogOut className="h-3 w-3" />
+                  <span>LOGOUT</span>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* HERO BANNER ROW */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center pt-1">
+            <div className="lg:col-span-7 space-y-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="aax-pixel-tag">RAGE ENGINE // AUTOFILL</span>
+                <span className="aax-sticker">80-90% PROXY SAVER</span>
+              </div>
+              <h1 className="text-2xl sm:text-4xl leading-[1.08] tracking-tight">
+                <span className="aax-hero-title block">ROBLOX ACCOUNT GENERATOR</span>
+                <span className="aax-gold-title block">
+                  24/7 MULTI-WORKER &bull; {activeMeta.label.toUpperCase()}
+                </span>
+              </h1>
+              <p className="max-w-2xl text-xs sm:text-sm font-bold text-[#e6f0ff]">
+                {activeMeta.subtitle} — dilengkapi{' '}
+                <span className="rounded-md bg-[#0a1f3d]/35 px-1.5 py-0.5 text-white">
+                  AES-256-GCM Vault
+                </span>
+                ,{' '}
+                <span className="rounded-md bg-[#0a1f3d]/35 px-1.5 py-0.5 text-[#ffc533]">
+                  1 Akun = 1 Sticky Proxy
+                </span>
+                , &amp; format siap pakai{' '}
+                <span className="rounded-md bg-[#0a1f3d]/35 px-1.5 py-0.5 text-white font-mono">
+                  user:pass:cookie
+                </span>
+                .
+              </p>
+            </div>
+
+            {/* Right Hero Card: Quick Live Status / How It Works */}
+            <div className="lg:col-span-5">
+              <div className="aax-card p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 border-b-2 dashed border-[#b6c9e2] pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md border-2 border-[#0a1f3d] bg-[#ffc533] font-mono text-xs font-black text-[#0a1f3d]">
+                      ⚡
+                    </span>
+                    <span className="text-xs font-black uppercase tracking-wider text-[#0a1f3d]">
+                      {batchState?.running
+                        ? batchState.paused
+                          ? 'BATCH PAUSED (DIJEDA)'
+                          : 'LIVE BATCH RUNNING'
+                        : 'ENGINE TELEMETRY'}
+                    </span>
+                  </div>
+                  <span className="rounded-full border-2 border-[#0a1f3d] bg-[#ddf6e5] px-2.5 py-0.5 font-mono text-[11px] font-black text-[#0a6b2b]">
+                    {stopwatch.accountsPerMinute !== null
+                      ? `${stopwatch.accountsPerMinute}/mnt • ${stopwatch.accountsPerHour}/jam`
+                      : 'READY 24/7'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="aax-well p-2">
+                    <div className="font-mono text-[10px] font-bold uppercase text-[#52657f]">
+                      Registered
+                    </div>
+                    <div className="font-mono text-base font-black tabular-nums text-[#0a6b2b]">
+                      {batchState?.completedCount ?? 0}/{batchState?.totalTarget ?? 0}
+                    </div>
+                  </div>
+                  <div className="aax-well p-2">
+                    <div className="font-mono text-[10px] font-bold uppercase text-[#52657f]">
+                      Stopwatch
+                    </div>
+                    <div className="font-mono text-base font-black tabular-nums text-[#0a1f3d]">
+                      {stopwatch.formattedElapsed}
+                    </div>
+                  </div>
+                  <div className="aax-well p-2">
+                    <div className="font-mono text-[10px] font-bold uppercase text-[#52657f]">
+                      Proxy Data
+                    </div>
+                    <div className="font-mono text-base font-black tabular-nums text-[#0e72e6]">
+                      {formatProxyBytes(batchState?.proxyTotalBytes)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="h-3 w-full overflow-hidden rounded-full border-2 border-[#0a1f3d] bg-[#f3f8fe]">
+                  <div
+                    className="h-full bg-[#17b34d] transition-all duration-300"
+                    style={{ width: `${batchPercent}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </header>
-
-        {/* Main Scroll Area */}
-        <main className="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto space-y-6">
-          {children}
-        </main>
+        </div>
       </div>
 
-      {/* Floating Toast Notification */}
+      {/* LIVE NAVY TICKER STRIP (aaxyou.store signature ticker) */}
+      <div className="aax-ticker px-4 sm:px-6 py-2">
+        <div className="mx-auto max-w-[1600px] flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+            <span className="aax-live-badge">LIVE</span>
+            <span className="font-mono text-xs text-white/95 truncate">
+              {batchState?.running ? (
+                <>
+                  <Activity className="inline h-3.5 w-3.5 text-[#ffc533] mr-1" />
+                  <strong>{batchState.activeWorkerCount} Worker aktif</strong> &bull; Terdaftar{' '}
+                  <strong>
+                    {batchState.completedCount}/{batchState.totalTarget}
+                  </strong>{' '}
+                  &bull; Durasi <strong>{stopwatch.formattedElapsed}</strong>
+                  {latestRegisteredSample ? (
+                    <>
+                      {' '}
+                      &bull; ✅ Akun terbaru: <strong className="text-[#7fd0ff]">{latestRegisteredSample}</strong>
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  ✅ <strong>RAGE Neo-Brutalist Arcade Mode Aktif</strong> &bull; Total Vault:{' '}
+                  <strong className="text-[#ffc533]">{accountsTotal} akun</strong> &bull; Hemat
+                  kuota proxy ~80-90% siap dijalankan
+                </>
+              )}
+            </span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3 font-mono text-[11px] text-[#7fd0ff]">
+            <span className="inline-flex items-center gap-1">
+              <Zap className="h-3.5 w-3.5 text-[#ffc533]" />
+              {batchState?.proxyTotalBlockedRequests ?? 0} req iklan/media diblokir
+            </span>
+            <span>&bull;</span>
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5 text-[#7fd0ff]" />
+              {stopwatch.etaFormatted ? `ETA ${stopwatch.etaFormatted}` : 'AES-256-GCM SEALED'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 p-4 sm:p-6 max-w-[1600px] w-full mx-auto space-y-6">
+        {children}
+      </main>
+
+      {/* FLOATING TOAST NOTIFICATION */}
       {toast && (
         <div
           role="status"
-          className={`fixed bottom-5 right-5 z-50 flex max-w-md items-start gap-2.5 rounded-xl border px-4 py-3 text-xs shadow-2xl backdrop-blur-xl ${
+          className={`fixed bottom-5 right-5 z-50 flex max-w-md items-start gap-2.5 rounded-2xl border-[3px] border-[#0a1f3d] px-4 py-3 text-xs font-bold shadow-[0_6px_0_#0a1f3d] ${
             toast.type === 'success'
-              ? 'border-emerald-500/30 bg-zinc-900/95 text-zinc-100'
-              : 'border-rose-500/40 bg-rose-950/95 text-rose-100'
+              ? 'bg-[#ddf6e5] text-[#0a6b2b]'
+              : 'bg-[#ffe0e5] text-[#a8102a]'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#17b34d]" />
           ) : (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#f0364f]" />
           )}
           <span className="font-mono leading-relaxed">{toast.text}</span>
           <button
             type="button"
             aria-label="Dismiss notification"
             onClick={onDismissToast}
-            className="ml-1 rounded p-0.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
+            className="ml-1 rounded-lg border-2 border-[#0a1f3d] bg-white p-0.5 text-[#0a1f3d] hover:bg-[#ffc533] cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
           </button>

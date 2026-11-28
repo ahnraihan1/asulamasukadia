@@ -1173,11 +1173,11 @@ export function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-zinc-300 flex flex-col items-center justify-center gap-3 font-mono text-xs rage-grid-bg">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
-          <Shield className="h-5 w-5 animate-pulse" />
+      <div className="aax-theme min-h-screen flex flex-col items-center justify-center gap-3 font-mono text-xs font-extrabold rage-grid-bg">
+        <div className="aax-card flex h-12 w-12 items-center justify-center bg-[#ffc533] text-[#0a1f3d]">
+          <Shield className="h-6 w-6 animate-bounce" />
         </div>
-        <span>INITIALIZING RAGE CORE ENGINE...</span>
+        <span className="aax-pill px-4 py-1.5">INITIALIZING RAGE CORE ENGINE...</span>
       </div>
     );
   }

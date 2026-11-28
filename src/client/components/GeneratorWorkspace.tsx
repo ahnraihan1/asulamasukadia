@@ -917,11 +917,11 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
           </section>
 
           {/* Action CTA Panel */}
-          <div className="rounded-2xl border border-zinc-800/90 bg-zinc-900/75 p-4 space-y-2.5">
+          <div className="aax-card p-4 space-y-2.5">
             <button
               type="submit"
               disabled={genLoading || batchState?.running}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 text-xs font-mono font-bold text-zinc-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 disabled:opacity-50 cursor-pointer"
+              className="aax-btn-gold flex w-full items-center justify-center gap-2 px-5 py-3.5 text-xs font-mono font-black disabled:opacity-50 cursor-pointer"
             >
               <Play className="h-4 w-4 fill-current" />
               <span>
