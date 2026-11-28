@@ -12,9 +12,39 @@ import {
   CheckSquare,
   X,
   Tag,
+  CalendarClock,
 } from 'lucide-react';
 import { AccountItem, PaginatedMeta, UserInfo } from '../api.js';
 import { getStatusBadgeClasses } from './types.js';
+
+function formatAccountCreatedAt(iso: string | null | undefined): {
+  datePart: string;
+  timePart: string;
+  fullText: string;
+} {
+  if (!iso) {
+    return { datePart: '—', timePart: '', fullText: '—' };
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return { datePart: iso, timePart: '', fullText: iso };
+  }
+  const datePart = d.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const timePart = d.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  return {
+    datePart,
+    timePart,
+    fullText: `${datePart} ${timePart}`,
+  };
+}
 
 interface AccountsViewProps {
   user: UserInfo;
@@ -392,19 +422,37 @@ export function AccountsView({
               <th className="p-3.5">Verification</th>
               <th className="p-3.5">Vault Status</th>
               <th className="p-3.5">Tags</th>
+              <th className="p-3.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (accSortBy === 'created_at') {
+                      onToggleSortOrder();
+                    } else {
+                      setAccSortBy('created_at');
+                    }
+                  }}
+                  title="Urutkan berdasarkan tanggal akun dibuat"
+                  className="inline-flex items-center gap-1 uppercase hover:text-zinc-200 cursor-pointer"
+                >
+                  <span>Tanggal Dibuat</span>
+                  <ArrowUpDown className="h-3 w-3 text-cyan-400" />
+                </button>
+              </th>
               <th className="p-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/60 text-xs">
             {accounts.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-8 text-center font-mono text-zinc-500">
+                <td colSpan={10} className="p-8 text-center font-mono text-zinc-500">
                   No registered accounts match current filters.
                 </td>
               </tr>
             ) : (
               accounts.map((acc) => {
                 const isSelected = selectedSet.has(acc.id);
+                const createdInfo = formatAccountCreatedAt(acc.createdAt);
                 return (
                   <tr
                     key={acc.id}
@@ -483,6 +531,18 @@ export function AccountsView({
                           </span>
                         ))}
                       </div>
+                    </td>
+                    <td
+                      className="p-3.5 font-mono tabular-nums whitespace-nowrap"
+                      title={acc.createdAt || createdInfo.fullText}
+                    >
+                      <div className="inline-flex items-center gap-1.5 text-zinc-200">
+                        <CalendarClock className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                        <span>{createdInfo.datePart}</span>
+                      </div>
+                      {createdInfo.timePart && (
+                        <div className="pl-5 text-[10px] text-zinc-500">{createdInfo.timePart}</div>
+                      )}
                     </td>
                     <td className="p-3.5 text-right">
                       <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
