@@ -550,12 +550,12 @@ export function AccountsView({
                         <CalendarClock className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
                         <span className="font-bold">{createdInfo.datePart}</span>
                         <span
-                          className={`rounded-md border-[1.5px] border-[#0a1f3d] px-1.5 py-0.5 text-[10px] font-black shadow-[1.5px_1.5px_0_#0a1f3d] ${
+                          className={`rounded-md border-[1.5px] border-[var(--border-ink)] px-1.5 py-0.5 text-[10px] font-black shadow-[1.5px_1.5px_0_var(--outline)] ${
                             createdInfo.ageDays >= 7
-                              ? 'bg-[#ddf6e5] text-[#0a6b2b]'
+                              ? 'bg-[var(--green-tint)] text-[var(--green-ink)]'
                               : createdInfo.ageDays >= 1
-                                ? 'bg-[#dcebff] text-[#0a56b4]'
-                                : 'bg-[#fff0c7] text-[#7a4d00]'
+                                ? 'bg-[var(--sky-tint)] text-[var(--sky-2)]'
+                                : 'bg-[var(--gold-tint)] text-[var(--gold-ink)]'
                           }`}
                         >
                           {createdInfo.ageLabel}

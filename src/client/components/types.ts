@@ -12,6 +12,47 @@ export interface ToastMessage {
 }
 
 export const STORAGE_CFG_KEY = 'rage_ui_config_v1';
+export const STORAGE_THEME_KEY = 'rage_aax_theme_v1';
+export type AaxThemeMode = 'dark' | 'light';
+
+export function useAaxTheme(): {
+  themeMode: AaxThemeMode;
+  toggleThemeMode: () => void;
+  setThemeMode: (mode: AaxThemeMode) => void;
+} {
+  const [themeMode, setThemeModeState] = useState<AaxThemeMode>(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_THEME_KEY);
+      return saved === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_THEME_KEY, themeMode);
+    } catch {
+      // ignore
+    }
+    if (typeof document !== 'undefined') {
+      document.body.classList.add('aax-theme');
+      document.body.classList.toggle('aax-dark', themeMode === 'dark');
+      document.body.classList.toggle('aax-light', themeMode === 'light');
+      document.documentElement.style.colorScheme = themeMode;
+    }
+  }, [themeMode]);
+
+  const toggleThemeMode = () => {
+    setThemeModeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  return {
+    themeMode,
+    toggleThemeMode,
+    setThemeMode: setThemeModeState,
+  };
+}
 
 export function loadSavedUiCfg(): Record<string, any> {
   try {
@@ -142,37 +183,37 @@ export function getStatusBadgeClasses(status: string): string {
     case 'VALID':
     case 'WAITING_REGISTRATION':
     case 'ACTIVE':
-      return 'border-2 border-[#0a1f3d] bg-[#ddf6e5] text-[#0a6b2b] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
+      return 'border-2 border-[var(--border-ink)] bg-[var(--green-tint)] text-[var(--green-ink)] font-extrabold shadow-[2px_2px_0_var(--outline)]';
     case 'PROCESSING':
     case 'OPENING_BROWSER':
     case 'CAPTURED_SAVING':
     case 'LAUNCHING':
-      return 'border-2 border-[#0a1f3d] bg-[#dcebff] text-[#0a56b4] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
+      return 'border-2 border-[var(--border-ink)] bg-[var(--sky-tint)] text-[var(--sky-2)] font-extrabold shadow-[2px_2px_0_var(--outline)]';
     case 'VERIFICATION_REQUIRED':
     case 'PENDING_CONFIRMATION':
     case 'PENDING':
     case 'PAUSED':
     case 'SAVING':
-      return 'border-2 border-[#0a1f3d] bg-[#fff0c7] text-[#7a4d00] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
+      return 'border-2 border-[var(--border-ink)] bg-[var(--gold-tint)] text-[var(--gold-ink)] font-extrabold shadow-[2px_2px_0_var(--outline)]';
     case 'FAILED':
     case 'INVALID':
     case 'ERROR':
     case 'SUSPENDED':
     case 'CANCELED':
-      return 'border-2 border-[#0a1f3d] bg-[#ffe0e5] text-[#a8102a] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
+      return 'border-2 border-[var(--border-ink)] bg-[var(--red-tint)] text-[var(--red-ink)] font-extrabold shadow-[2px_2px_0_var(--outline)]';
     default:
-      return 'border-2 border-[#0a1f3d] bg-[#f3f8fe] text-[#2a3f60] font-extrabold shadow-[2px_2px_0_#0a1f3d]';
+      return 'border-2 border-[var(--border-ink)] bg-[var(--well)] text-[var(--ink-2)] font-extrabold shadow-[2px_2px_0_var(--outline)]';
   }
 }
 
 export const INPUT_CLS =
-  'w-full rounded-xl border-[2.5px] border-[#0a1f3d] bg-[#f3f8fe] px-3 py-2 text-sm font-bold text-[#0a1f3d] placeholder:text-[#52657f] transition focus:border-[#0e72e6] focus:outline-none focus:ring-3 focus:ring-[#7fd0ff]';
+  'w-full rounded-xl border-[2.5px] border-[var(--border-ink)] bg-[var(--well)] px-3 py-2 text-sm font-bold text-[var(--ink)] placeholder:text-[var(--muted)] transition focus:border-[#38bdf8] focus:outline-none';
 
 export const SELECT_CLS =
-  'w-full rounded-xl border-[2.5px] border-[#0a1f3d] bg-[#f3f8fe] px-3 py-2 text-sm font-bold text-[#0a1f3d] transition focus:border-[#0e72e6] focus:outline-none focus:ring-3 focus:ring-[#7fd0ff]';
+  'w-full rounded-xl border-[2.5px] border-[var(--border-ink)] bg-[var(--well)] px-3 py-2 text-sm font-bold text-[var(--ink)] transition focus:border-[#38bdf8] focus:outline-none';
 
 export const COMPACT_INPUT_CLS =
-  'w-full rounded-xl border-[2.5px] border-[#0a1f3d] bg-[#f3f8fe] px-2.5 py-1.5 text-xs font-bold text-[#0a1f3d] placeholder:text-[#52657f] transition focus:border-[#0e72e6] focus:outline-none focus:ring-3 focus:ring-[#7fd0ff]';
+  'w-full rounded-xl border-[2.5px] border-[var(--border-ink)] bg-[var(--well)] px-2.5 py-1.5 text-xs font-bold text-[var(--ink)] placeholder:text-[var(--muted)] transition focus:border-[#38bdf8] focus:outline-none';
 
 export type ExportFormatPreset =
   | 'USER_PASS_COOKIE'

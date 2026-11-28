@@ -12,9 +12,17 @@ import {
   Activity,
   Zap,
   Clock,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { UserInfo, BatchRunState } from '../api.js';
-import { ActiveTab, ToastMessage, formatProxyBytes, useBatchStopwatch } from './types.js';
+import {
+  ActiveTab,
+  ToastMessage,
+  formatProxyBytes,
+  useAaxTheme,
+  useBatchStopwatch,
+} from './types.js';
 
 interface SidebarLayoutProps {
   user: UserInfo;
@@ -63,9 +71,9 @@ const NAV_ITEMS: Array<{
 ];
 
 /**
- * Playful Neo-Brutalist Arcade Layout (inspired by aaxyou.store):
+ * Playful Neo-Brutalist Arcade Layout (inspired by aaxyou.store) with Dark & Light Arcade modes:
  * - Sky gradient stage with CSS pixel clouds & checkerboard ground strip
- * - Floating white capsule pills (.aax-pill) for Brand, Navigation, Live Stats, & Actions
+ * - Floating capsule pills (.aax-pill) for Brand, Navigation, Live Stats, Theme Switcher, & Actions
  * - Hero banner with 3D typography, tilted pixel sticker, & quick-status card
  * - Dark navy LIVE ticker bar underneath
  */
@@ -82,6 +90,7 @@ export function SidebarLayout({
   children,
 }: SidebarLayoutProps) {
   const stopwatch = useBatchStopwatch(batchState);
+  const { themeMode, toggleThemeMode } = useAaxTheme();
   const activeMeta = NAV_ITEMS.find((n) => n.id === activeTab) ?? NAV_ITEMS[0];
 
   const getNavBadge = (id: ActiveTab): string | null => {
@@ -120,11 +129,11 @@ export function SidebarLayout({
               onClick={() => setActiveTab('generator')}
               className="aax-pill inline-flex items-center gap-2.5 px-3.5 py-2 text-left transition hover:-translate-y-0.5 cursor-pointer"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#0a1f3d] bg-[#ffc533] font-black text-sm text-[#0a1f3d] shadow-[2px_2px_0_#0a1f3d]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#040a14] bg-[#ffc533] font-black text-sm text-[#0a1f3d] shadow-[2px_2px_0_#040a14]">
                 R
               </span>
-              <span className="font-black tracking-tight text-base text-[#0a1f3d]">
-                RAGE<span className="text-[#0e72e6]">ENGINE</span>
+              <span className="font-black tracking-tight text-base text-[var(--ink)]">
+                RAGE<span className="text-[#38bdf8]">ENGINE</span>
               </span>
             </button>
 
@@ -144,18 +153,18 @@ export function SidebarLayout({
                     onClick={() => setActiveTab(item.id)}
                     className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-extrabold transition cursor-pointer ${
                       isActive
-                        ? 'border-2 border-[#0a1f3d] bg-[#7fd0ff] text-[#0a1f3d] shadow-[0_2px_0_#0a1f3d]'
-                        : 'border-2 border-transparent text-[#2a3f60] hover:bg-[#eef5fd] hover:text-[#0a1f3d]'
+                        ? 'border-2 border-[#040a14] bg-[#ffc533] text-[#0a1f3d] shadow-[0_2px_0_#040a14]'
+                        : 'border-2 border-transparent text-[var(--ink-2)] hover:bg-[var(--sky-tint)] hover:text-[var(--ink)]'
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     <span>{item.label}</span>
                     {badge && (
                       <span
-                        className={`rounded-full border-[1.5px] border-[#0a1f3d] px-1.5 py-0.2 font-mono text-[10px] font-black tabular-nums ${
-                          item.id === 'generator' && batchState?.running
-                            ? 'bg-[#ffc533] text-[#0a1f3d]'
-                            : 'bg-[#dcebff] text-[#0a56b4]'
+                        className={`rounded-full border-[1.5px] border-[#040a14] px-1.5 py-0.2 font-mono text-[10px] font-black tabular-nums ${
+                          isActive
+                            ? 'bg-[#0a1f3d] text-[#ffc533]'
+                            : 'bg-[var(--sky-tint)] text-[var(--sky-2)]'
                         }`}
                       >
                         {badge}
@@ -166,15 +175,15 @@ export function SidebarLayout({
               })}
             </nav>
 
-            {/* 3. Right Live Stat Pills & Quick Actions */}
+            {/* 3. Right Live Stat Pills, Theme Switcher, & Quick Actions */}
             <div className="flex flex-wrap items-center gap-2">
               <div
                 title="Total akun terdaftar di Account Vault"
                 className="aax-pill inline-flex items-center gap-2 px-3 py-1.5 text-xs font-extrabold"
               >
-                <span className="h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#0a1f3d] bg-[#17b34d]" />
+                <span className="h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#040a14] bg-[#22c55e]" />
                 <span className="font-mono font-bold tabular-nums">{accountsTotal}</span>
-                <span className="text-[#2a3f60]">in vault</span>
+                <span className="text-[var(--ink-2)]">in vault</span>
               </div>
 
               <div
@@ -182,18 +191,42 @@ export function SidebarLayout({
                 className="aax-pill inline-flex items-center gap-2 px-3 py-1.5 text-xs font-extrabold"
               >
                 <span
-                  className={`h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#0a1f3d] ${
-                    batchState?.running ? 'bg-[#ffc533] animate-pulse' : 'bg-[#2b8cff]'
+                  className={`h-2.5 w-2.5 rounded-[3px] border-[1.5px] border-[#040a14] ${
+                    batchState?.running ? 'bg-[#ffc533] animate-pulse' : 'bg-[#38bdf8]'
                   }`}
                 />
                 <span className="font-mono font-bold tabular-nums">
                   {batchState?.completedCount ?? 0}/{batchState?.totalTarget ?? 0}
                 </span>
-                <span className="text-[#2a3f60]">&bull;</span>
-                <span className="font-mono font-bold tabular-nums text-[#0e72e6]">
+                <span className="text-[var(--ink-2)]">&bull;</span>
+                <span className="font-mono font-bold tabular-nums text-[#38bdf8]">
                   {stopwatch.formattedElapsed}
                 </span>
               </div>
+
+              {/* DARK / LIGHT ARCADE THEME TOGGLE PILL */}
+              <button
+                type="button"
+                onClick={toggleThemeMode}
+                title={
+                  themeMode === 'dark'
+                    ? 'Ganti ke Tema Light Arcade (Daytime Sky)'
+                    : 'Ganti ke Tema Dark Arcade (Midnight Sky)'
+                }
+                className="aax-pill inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-black transition hover:-translate-y-0.5 cursor-pointer"
+              >
+                {themeMode === 'dark' ? (
+                  <>
+                    <Moon className="h-3.5 w-3.5 text-[#ffc533]" />
+                    <span>DARK</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="h-3.5 w-3.5 text-[#d9960a]" />
+                    <span>LIGHT</span>
+                  </>
+                )}
+              </button>
 
               <button
                 type="button"
@@ -205,8 +238,8 @@ export function SidebarLayout({
               </button>
 
               <div className="aax-pill inline-flex items-center gap-2 pl-3 pr-1.5 py-1">
-                <span className="text-xs font-black text-[#0a1f3d]">{user.username}</span>
-                <span className="rounded-md border-[1.5px] border-[#0a1f3d] bg-[#fff0c7] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#7a4d00]">
+                <span className="text-xs font-black text-[var(--ink)]">{user.username}</span>
+                <span className="rounded-md border-[1.5px] border-[#040a14] bg-[#ffc533] px-1.5 py-0.5 font-mono text-[10px] font-black text-[#0a1f3d]">
                   {user.role}
                 </span>
                 <button
@@ -214,7 +247,7 @@ export function SidebarLayout({
                   title="Logout"
                   aria-label="Logout"
                   onClick={onLogout}
-                  className="inline-flex items-center gap-1 rounded-full border-2 border-[#0a1f3d] bg-[#ffe0e5] px-2.5 py-1 font-mono text-[10px] font-black text-[#a8102a] hover:bg-[#ffc5d0] cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-full border-2 border-[#040a14] bg-[#f43f5e] px-2.5 py-1 font-mono text-[10px] font-black text-white hover:bg-[#e11d48] cursor-pointer"
                 >
                   <LogOut className="h-3 w-3" />
                   <span>LOGOUT</span>
@@ -236,32 +269,32 @@ export function SidebarLayout({
                   24/7 MULTI-WORKER &bull; {activeMeta.label.toUpperCase()}
                 </span>
               </h1>
-              <p className="max-w-2xl text-xs sm:text-sm font-bold text-[#e6f0ff]">
+              <p className="max-w-2xl text-xs sm:text-sm font-bold text-[#dbeafe]">
                 {activeMeta.subtitle} — dilengkapi{' '}
-                <span className="rounded-md bg-[#0a1f3d]/35 px-1.5 py-0.5 text-white">
+                <span className="rounded-md bg-[#040a14]/50 px-1.5 py-0.5 text-white">
                   AES-256-GCM Vault
                 </span>
                 ,{' '}
-                <span className="rounded-md bg-[#0a1f3d]/35 px-1.5 py-0.5 text-[#ffc533]">
+                <span className="rounded-md bg-[#040a14]/50 px-1.5 py-0.5 text-[#ffc533]">
                   1 Akun = 1 Sticky Proxy
                 </span>
                 , &amp; format siap pakai{' '}
-                <span className="rounded-md bg-[#0a1f3d]/35 px-1.5 py-0.5 text-white font-mono">
+                <span className="rounded-md bg-[#040a14]/50 px-1.5 py-0.5 text-white font-mono">
                   user:pass:cookie
                 </span>
                 .
               </p>
             </div>
 
-            {/* Right Hero Card: Quick Live Status / How It Works */}
+            {/* Right Hero Card: Quick Live Status */}
             <div className="lg:col-span-5">
               <div className="aax-card p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2 border-b-2 dashed border-[#b6c9e2] pb-2.5">
+                <div className="flex items-center justify-between gap-2 border-b-2 dashed border-[var(--line-2)] pb-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md border-2 border-[#0a1f3d] bg-[#ffc533] font-mono text-xs font-black text-[#0a1f3d]">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md border-2 border-[#040a14] bg-[#ffc533] font-mono text-xs font-black text-[#0a1f3d]">
                       ⚡
                     </span>
-                    <span className="text-xs font-black uppercase tracking-wider text-[#0a1f3d]">
+                    <span className="text-xs font-black uppercase tracking-wider text-[var(--ink)]">
                       {batchState?.running
                         ? batchState.paused
                           ? 'BATCH PAUSED (DIJEDA)'
@@ -269,7 +302,7 @@ export function SidebarLayout({
                         : 'ENGINE TELEMETRY'}
                     </span>
                   </div>
-                  <span className="rounded-full border-2 border-[#0a1f3d] bg-[#ddf6e5] px-2.5 py-0.5 font-mono text-[11px] font-black text-[#0a6b2b]">
+                  <span className="rounded-full border-2 border-[var(--border-ink)] bg-[var(--green-tint)] px-2.5 py-0.5 font-mono text-[11px] font-black text-[var(--green-ink)]">
                     {stopwatch.accountsPerMinute !== null
                       ? `${stopwatch.accountsPerMinute}/mnt • ${stopwatch.accountsPerHour}/jam`
                       : 'READY 24/7'}
@@ -278,34 +311,34 @@ export function SidebarLayout({
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="aax-well p-2">
-                    <div className="font-mono text-[10px] font-bold uppercase text-[#52657f]">
+                    <div className="font-mono text-[10px] font-bold uppercase text-[var(--muted)]">
                       Registered
                     </div>
-                    <div className="font-mono text-base font-black tabular-nums text-[#0a6b2b]">
+                    <div className="font-mono text-base font-black tabular-nums text-[var(--green-ink)]">
                       {batchState?.completedCount ?? 0}/{batchState?.totalTarget ?? 0}
                     </div>
                   </div>
                   <div className="aax-well p-2">
-                    <div className="font-mono text-[10px] font-bold uppercase text-[#52657f]">
+                    <div className="font-mono text-[10px] font-bold uppercase text-[var(--muted)]">
                       Stopwatch
                     </div>
-                    <div className="font-mono text-base font-black tabular-nums text-[#0a1f3d]">
+                    <div className="font-mono text-base font-black tabular-nums text-[var(--ink)]">
                       {stopwatch.formattedElapsed}
                     </div>
                   </div>
                   <div className="aax-well p-2">
-                    <div className="font-mono text-[10px] font-bold uppercase text-[#52657f]">
+                    <div className="font-mono text-[10px] font-bold uppercase text-[var(--muted)]">
                       Proxy Data
                     </div>
-                    <div className="font-mono text-base font-black tabular-nums text-[#0e72e6]">
+                    <div className="font-mono text-base font-black tabular-nums text-[var(--sky-2)]">
                       {formatProxyBytes(batchState?.proxyTotalBytes)}
                     </div>
                   </div>
                 </div>
 
-                <div className="h-3 w-full overflow-hidden rounded-full border-2 border-[#0a1f3d] bg-[#f3f8fe]">
+                <div className="h-3 w-full overflow-hidden rounded-full border-2 border-[var(--border-ink)] bg-[var(--well)]">
                   <div
-                    className="h-full bg-[#17b34d] transition-all duration-300"
+                    className="h-full bg-[#22c55e] transition-all duration-300"
                     style={{ width: `${batchPercent}%` }}
                   />
                 </div>
@@ -332,13 +365,18 @@ export function SidebarLayout({
                   {latestRegisteredSample ? (
                     <>
                       {' '}
-                      &bull; ✅ Akun terbaru: <strong className="text-[#7fd0ff]">{latestRegisteredSample}</strong>
+                      &bull; ✅ Akun terbaru:{' '}
+                      <strong className="text-[#7fd0ff]">{latestRegisteredSample}</strong>
                     </>
                   ) : null}
                 </>
               ) : (
                 <>
-                  ✅ <strong>RAGE Neo-Brutalist Arcade Mode Aktif</strong> &bull; Total Vault:{' '}
+                  ✅{' '}
+                  <strong>
+                    RAGE Neo-Brutalist Arcade ({themeMode === 'dark' ? 'Dark Mode' : 'Light Mode'})
+                  </strong>{' '}
+                  &bull; Total Vault:{' '}
                   <strong className="text-[#ffc533]">{accountsTotal} akun</strong> &bull; Hemat
                   kuota proxy ~80-90% siap dijalankan
                 </>
@@ -369,23 +407,23 @@ export function SidebarLayout({
       {toast && (
         <div
           role="status"
-          className={`fixed bottom-5 right-5 z-50 flex max-w-md items-start gap-2.5 rounded-2xl border-[3px] border-[#0a1f3d] px-4 py-3 text-xs font-bold shadow-[0_6px_0_#0a1f3d] ${
+          className={`fixed bottom-5 right-5 z-50 flex max-w-md items-start gap-2.5 rounded-2xl border-[3px] border-[var(--border-ink)] px-4 py-3 text-xs font-bold shadow-[0_6px_0_var(--outline)] ${
             toast.type === 'success'
-              ? 'bg-[#ddf6e5] text-[#0a6b2b]'
-              : 'bg-[#ffe0e5] text-[#a8102a]'
+              ? 'bg-[var(--green-tint)] text-[var(--green-ink)]'
+              : 'bg-[var(--red-tint)] text-[var(--red-ink)]'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#17b34d]" />
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#22c55e]" />
           ) : (
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#f0364f]" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#f43f5e]" />
           )}
           <span className="font-mono leading-relaxed">{toast.text}</span>
           <button
             type="button"
             aria-label="Dismiss notification"
             onClick={onDismissToast}
-            className="ml-1 rounded-lg border-2 border-[#0a1f3d] bg-white p-0.5 text-[#0a1f3d] hover:bg-[#ffc533] cursor-pointer"
+            className="ml-1 rounded-lg border-2 border-[var(--border-ink)] bg-[var(--paper)] p-0.5 text-[var(--ink)] hover:bg-[#ffc533] hover:text-[#0a1f3d] cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
           </button>
