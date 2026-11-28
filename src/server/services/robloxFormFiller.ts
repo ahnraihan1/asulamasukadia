@@ -1100,6 +1100,14 @@ export function buildManualUserscriptSource(bridgeBaseUrl = 'http://127.0.0.1:40
   function haltHomeAndSignal() {
     if (homeHalted) return;
     homeHalted = true;
+    // Hemat kuota ekstrem (100% aman karena HANYA dieksekusi setelah redirect ke /home):
+    // hentikan network & kosongkan DOM /home seketika agar bundle /home tidak menembakkan apis.roblox.com
+    try { window.stop(); } catch (_e) {}
+    try {
+      if (document.documentElement) {
+        document.documentElement.innerHTML = '';
+      }
+    } catch (_e) {}
     var homeWid = resolveWorkerId() || initialWorkerId;
     try {
       GM_xmlhttpRequest({
@@ -1109,12 +1117,10 @@ export function buildManualUserscriptSource(bridgeBaseUrl = 'http://127.0.0.1:40
         data: JSON.stringify({ workerId: homeWid ? Number(homeWid) : 0, url: location.href })
       });
     } catch (_e) {}
-    // Hemat kuota ekstrem: stop parsing /home & pindah ke about:blank dalam ~80ms agar apis.roblox.com (omni/home) tidak sempat tereksekusi
-    try { window.stop(); } catch (_e) {}
     setTimeout(function() {
       try { window.stop(); } catch (_e) {}
       try { window.location.replace('about:blank'); } catch (_e) {}
-    }, 80);
+    }, 15);
   }
 
   if (/\\/home/i.test(location.pathname)) {
@@ -1122,13 +1128,13 @@ export function buildManualUserscriptSource(bridgeBaseUrl = 'http://127.0.0.1:40
     return;
   }
 
-  // Pantau perpindahan SPA (pushState) dari CreateAccount -> /home agar tetap memutus apis.roblox.com /home seketika
+  // Pantau perpindahan SPA dari CreateAccount -> /home setiap 40ms (tanpa memodifikasi fetch/XHR di CreateAccount)
   var spaHomeWatch = setInterval(function() {
     if (/\\/home/i.test(location.pathname)) {
       clearInterval(spaHomeWatch);
       haltHomeAndSignal();
     }
-  }, 200);
+  }, 40);
 
   var fill = ${ROBLOX_SIGNUP_AUTOFILL_BROWSER_FN};
   var started = false;

@@ -664,6 +664,11 @@ describe('Roblox Account Generator Engine - Comprehensive Suite', () => {
       expect(isBlockedByDataSaver('usermoderation.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('realtime-signalr.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('sentry-relay.rbxinfra.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('cdn.discordapp.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('media.discordapp.net', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('rr2---sn-npoe7nez.googlevideo.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('ads.roblox.com', { dataSaver: true })).toBe(true);
+      expect(isBlockedByDataSaver('gamejoin.roblox.com', { dataSaver: true })).toBe(true);
       expect(isBlockedByDataSaver('apis.roblox.com', { dataSaver: true })).toBe(false);
       expect(
         isBlockedByDataSaver('prod-games-particle.merino.prod.webservices.mozgcp.net', {
