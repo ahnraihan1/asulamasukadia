@@ -39,6 +39,7 @@ import {
   describeWindowSplitPreview,
   formatProxyBytes,
   getStatusBadgeClasses,
+  useBatchStopwatch,
 } from './types.js';
 
 interface GeneratorWorkspaceProps {
@@ -200,6 +201,7 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
 
   const [browserSectionOpen, setBrowserSectionOpen] = useState(true);
   const [proxySectionOpen, setProxySectionOpen] = useState(true);
+  const stopwatch = useBatchStopwatch(batchState);
 
   const proxyLineCount = proxyText
     .split(/\r?\n/)
@@ -915,7 +917,7 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
               <Play className="h-4 w-4 fill-current" />
               <span>
                 {batchState?.running
-                  ? `WORKER BERJALAN (${batchState.completedCount}/${batchState.totalTarget})...`
+                  ? `WORKER BERJALAN (${batchState.completedCount}/${batchState.totalTarget} • ${stopwatch.formattedElapsed})...`
                   : browserVariant === 'FIREFOX_MAIN'
                     ? `MULAI FIREFOX UTAMA & AUTOFILL (${workerCount} WORKER)`
                     : `MULAI ${browserVariant} & AUTOFILL (${workerCount} WORKER)`}
@@ -977,18 +979,34 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onExportAllFormatted}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-1.5 font-mono text-[11px] font-semibold text-zinc-950 hover:bg-zinc-200 cursor-pointer"
-              >
-                <Database className="h-3.5 w-3.5" />
-                <span>LIHAT SEMUA DATABASE</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  title="Stopwatch durasi generate account"
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 font-mono text-xs font-semibold tabular-nums ${
+                    batchState?.running
+                      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                      : batchState?.batchId
+                        ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300'
+                        : 'border-zinc-800 bg-zinc-950/80 text-zinc-400'
+                  }`}
+                >
+                  <Clock className={`h-3.5 w-3.5 ${batchState?.running ? 'animate-spin' : ''}`} />
+                  <span>{stopwatch.formattedElapsed}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onExportAllFormatted}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-1.5 font-mono text-[11px] font-semibold text-zinc-950 hover:bg-zinc-200 cursor-pointer"
+                >
+                  <Database className="h-3.5 w-3.5" />
+                  <span>LIHAT SEMUA DATABASE</span>
+                </button>
+              </div>
             </div>
 
-            {/* 4 KPI Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* 5 KPI Summary Cards (termasuk Stopwatch & ETA) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3">
                 <div className="font-mono text-[10px] uppercase text-zinc-500">Terdaftar</div>
                 <div className="mt-1 font-mono text-lg font-bold tabular-nums text-emerald-400">
@@ -1002,6 +1020,27 @@ export function GeneratorWorkspace(props: GeneratorWorkspaceProps) {
                     className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-300"
                     style={{ width: `${batchPercent}%` }}
                   />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-3">
+                <div className="flex items-center justify-between font-mono text-[10px] uppercase text-zinc-500">
+                  <span>Stopwatch</span>
+                  {batchState?.running && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  )}
+                </div>
+                <div className="mt-1 font-mono text-lg font-bold tabular-nums text-zinc-100">
+                  {stopwatch.formattedElapsed}
+                </div>
+                <div className="mt-1 truncate font-mono text-[10px] tabular-nums text-cyan-300">
+                  {stopwatch.avgSecondsPerAccount !== null
+                    ? `${stopwatch.avgSecondsPerAccount}d/akun${
+                        stopwatch.etaFormatted ? ` • ETA ${stopwatch.etaFormatted}` : ''
+                      }`
+                    : batchState?.running
+                      ? 'Menghitung laju...'
+                      : 'Siap mulai'}
                 </div>
               </div>
 

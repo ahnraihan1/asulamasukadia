@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import { BatchRunState } from '../api.js';
+
 export type ActiveTab = 'generator' | 'jobs' | 'accounts' | 'logs' | 'settings';
 
 export type WindowSplitMode = 'AUTO' | 'COLUMNS' | 'GRID';
@@ -24,6 +27,78 @@ export function formatProxyBytes(bytes?: number): string {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+export function formatStopwatchDuration(totalSeconds: number): string {
+  const sec = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(sec / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+  return [
+    String(hours).padStart(2, '0'),
+    String(minutes).padStart(2, '0'),
+    String(seconds).padStart(2, '0'),
+  ].join(':');
+}
+
+export interface BatchStopwatchMetrics {
+  elapsedSeconds: number;
+  formattedElapsed: string;
+  avgSecondsPerAccount: number | null;
+  etaFormatted: string | null;
+}
+
+export function useBatchStopwatch(batchState: BatchRunState | null): BatchStopwatchMetrics {
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    if (!batchState?.running || !batchState?.startedAt) return;
+    setNowMs(Date.now());
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [batchState?.running, batchState?.startedAt, batchState?.batchId]);
+
+  if (!batchState?.startedAt) {
+    return {
+      elapsedSeconds: 0,
+      formattedElapsed: '00:00:00',
+      avgSecondsPerAccount: null,
+      etaFormatted: null,
+    };
+  }
+
+  const startMs = Date.parse(batchState.startedAt);
+  const endMs = batchState.running
+    ? Math.max(startMs, nowMs)
+    : batchState.updatedAt
+      ? Math.max(startMs, Date.parse(batchState.updatedAt))
+      : startMs;
+
+  const elapsedSeconds = Number.isFinite(startMs)
+    ? Math.max(0, Math.floor((endMs - startMs) / 1000))
+    : 0;
+  const formattedElapsed = formatStopwatchDuration(elapsedSeconds);
+
+  const completed = batchState.completedCount ?? 0;
+  const avgSecondsPerAccount =
+    completed > 0 && elapsedSeconds > 0
+      ? Math.round((elapsedSeconds / completed) * 10) / 10
+      : null;
+
+  const remainingAccounts = Math.max(0, (batchState.totalTarget ?? 0) - completed);
+  const etaFormatted =
+    batchState.running && avgSecondsPerAccount !== null && remainingAccounts > 0
+      ? formatStopwatchDuration(Math.ceil((elapsedSeconds / completed) * remainingAccounts))
+      : null;
+
+  return {
+    elapsedSeconds,
+    formattedElapsed,
+    avgSecondsPerAccount,
+    etaFormatted,
+  };
 }
 
 export function describeWindowSplitPreview(n: number, mode: WindowSplitMode): string {

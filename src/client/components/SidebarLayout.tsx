@@ -17,7 +17,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { UserInfo, BatchRunState } from '../api.js';
-import { ActiveTab, ToastMessage } from './types.js';
+import { ActiveTab, ToastMessage, useBatchStopwatch } from './types.js';
 
 interface SidebarLayoutProps {
   user: UserInfo;
@@ -89,6 +89,7 @@ export function SidebarLayout({
 }: SidebarLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const stopwatch = useBatchStopwatch(batchState);
 
   const activeMeta = NAV_ITEMS.find((n) => n.id === activeTab) ?? NAV_ITEMS[0];
 
@@ -217,7 +218,8 @@ export function SidebarLayout({
                 {batchState.running ? 'BATCH RUNNING' : 'LAST BATCH'}
               </span>
               <span className="tabular-nums text-emerald-400">
-                {batchState.completedCount}/{batchState.totalTarget}
+                {batchState.completedCount}/{batchState.totalTarget} &bull;{' '}
+                {stopwatch.formattedElapsed}
               </span>
             </div>
             <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-zinc-800">
@@ -326,7 +328,7 @@ export function SidebarLayout({
                   <Activity className="h-3.5 w-3.5 animate-pulse" />
                   <span className="tabular-nums">
                     {batchState.activeWorkerCount} Worker &bull; {batchState.completedCount}/
-                    {batchState.totalTarget}
+                    {batchState.totalTarget} &bull; {stopwatch.formattedElapsed}
                   </span>
                 </button>
               )}
